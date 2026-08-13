@@ -27,10 +27,15 @@ async function handleNotifyOrder(request, env, cors) {
   return Response.json({ ok: true }, { headers: cors });
 }
 
+// Nota: sin base de datos no hay forma de deduplicar. Si el cliente recarga
+// gracias.html tras un pago ya confirmado, esta función reenvía ambos emails.
+// Limitación aceptada para este alcance (mismo criterio que la ausencia de
+// webhook de Stripe, documentada en la spec) — no añadir Workers KV u otra
+// infraestructura para esto salvo que el propietario lo pida explícitamente.
 async function handleConfirmPayment(url, env, cors) {
   const sessionId = url.searchParams.get('session_id');
-  if (!sessionId) {
-    return Response.json({ error: 'Falta session_id' }, { status: 400, headers: cors });
+  if (!sessionId || !/^cs_(test|live)_[A-Za-z0-9]+$/.test(sessionId)) {
+    return Response.json({ error: 'session_id inválido' }, { status: 400, headers: cors });
   }
   const session = await retrieveStripeSession(sessionId, env.STRIPE_SECRET_KEY);
   if (!parseSessionPaymentStatus(session)) {
