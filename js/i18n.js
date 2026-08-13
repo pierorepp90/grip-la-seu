@@ -1,3 +1,4 @@
+// js/i18n.js
 export const LANGS = ['ca', 'es', 'en'];
 
 export const DICT = {
