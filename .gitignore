@@ -1,1 +1,5 @@
 .worktrees/
+node_modules/
+.wrangler/
+worker/.dev.vars
+.DS_Store
