@@ -2400,6 +2400,22 @@ store, select "Efectivo" in step 3, go back to step 2, switch to "Punto GLS",
 and still have "Efectivo" selected in step 3 even though it's only valid for
 store drop-off — the reset prevents that stale, invalid combination.
 
+**Amendment found during Task 17's code review, applied in the same task**: the
+markup above (as originally written in this plan) had three accessibility
+defects, since fixed in the actual implementation and reflected here for
+anyone reading the plan later: (1) the delivery-option-cards were plain
+`<div>`s with only `@click`, making them unreachable/unusable by keyboard —
+fixed by adding `tabindex="0" role="button"` plus `@keydown.enter` and
+`@keydown.space.prevent` handlers mirroring the click handler; (2) the
+`entregaNombre`/`metodoPago` reset fired on every click bubbling up from
+inside an already-selected card (e.g. clicking the section title), silently
+wiping a valid selection — fixed by guarding each handler with
+`if (entregaTipo !== '<value>') { ... }` so the reset only happens on an
+actual delivery-type change; (3) the 4 step-2 text field labels
+(`nombre`/`direccion`/`telefono`/`email`) had no `for`/`id` pairing — fixed
+by adding `id="of-<field>"` to each input and a matching `for="of-<field>"`
+on its label.
+
 - [ ] **Step 2: Serve the page locally and click through the markup (without full logic yet)**
 
 Run: `npx serve .` from the repo root, open the site, click "Coordinar recollida".
