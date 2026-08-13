@@ -64,14 +64,23 @@ worker/.dev.vars
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test tests/"
+    "test": "node --test"
   }
 }
 ```
 
+Note: the test script is `node --test` with **no path argument** (not `node --test tests/`).
+On at least some Node 22 builds, passing a directory as an explicit positional
+argument to `--test` fails with `MODULE_NOT_FOUND` — Node tries to `require()`
+the directory itself instead of recursively discovering test files inside it.
+Running `node --test` with no arguments triggers Node's default recursive
+discovery from the current directory, which works correctly both when
+`tests/` is empty and once it contains real `*.test.js` files. Verified
+directly in this environment before writing this task.
+
 - [ ] **Step 4: Verify Node is available and test runner works with zero tests**
 
-Run: `node --test tests/`
+Run: `node --test`
 Expected: Node reports 0 tests found (no failures) — the `tests/` directory exists but is empty. This just confirms Node's test runner is usable before we add real tests in Task 2.
 
 - [ ] **Step 5: Commit**
@@ -654,7 +663,7 @@ git commit -m "feat: add Worker API client for checkout, notify and confirm"
 
 - [ ] **Step 6: Run the full frontend test suite**
 
-Run: `node --test tests/`
+Run: `node --test` (or `npm test`) — no path argument, see the note in Task 1.
 Expected: PASS — all tests from Tasks 2-7 (pricing, geo, validation, order, geocode, api) pass together.
 
 ---
@@ -674,12 +683,14 @@ Expected: PASS — all tests from Tasks 2-7 (pricing, geo, validation, order, ge
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test tests/",
+    "test": "node --test",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy"
   }
 }
 ```
+(Same reasoning as the root `package.json` in Task 1: `node --test` with no
+path argument, not `node --test tests/`.)
 
 - [ ] **Step 2: Write the failing test**
 
@@ -1119,7 +1130,10 @@ git commit -m "feat(worker): add Resend email builders and sender"
 
 - [ ] **Step 6: Run the full worker test suite**
 
-Run: `node --test worker/tests/`
+Run: `(cd worker && node --test)` — no path argument, run with `worker/` as the
+current directory so it discovers `worker/tests/*.test.js` (see the note in
+Task 8; a bare directory argument like `node --test worker/tests/` fails with
+`MODULE_NOT_FOUND` on this environment's Node).
 Expected: PASS — all tests from Tasks 8-10 (cors, stripe, resend) pass together.
 
 ---
@@ -1627,7 +1641,7 @@ git commit -m "feat: add CA/ES/EN i18n dictionary"
 
 - [ ] **Step 6: Run the full frontend test suite again**
 
-Run: `node --test tests/`
+Run: `node --test` (or `npm test`) — no path argument, see the note in Task 1.
 Expected: PASS — all 8 test files from Tasks 2-7, 12 and 13 pass together
 (pricing, geo, validation, order, geocode, api, data, i18n).
 
