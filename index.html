@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Grip La Seu — Ressolats de peus de gat</title>
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <script defer src="https://unpkg.com/alpinejs@3/dist/cdn.min.js"></script>
+  <script type="module" src="js/app.js"></script>
+</head>
+<body x-data="site()">
+  <header class="site-header">
+    <div class="container">
+      <div class="logo">
+        <img src="assets/logo.svg" alt="Grip La Seu" />
+      </div>
+      <button class="menu-toggle" @click="menuOpen = !menuOpen" aria-label="Menú">&#9776;</button>
+      <div class="header-controls" :class="{ open: menuOpen }">
+        <div class="lang-switch" role="group" aria-label="Idioma">
+          <template x-for="lang in langs" :key="lang">
+            <button @click="setLang(lang)" :aria-current="lang === $store.i18n.lang" x-text="lang.toUpperCase()"></button>
+          </template>
+        </div>
+        <div class="social-links">
+          <a href="https://wa.me/34669918744" target="_blank" rel="noopener" aria-label="WhatsApp">WhatsApp</a>
+          <a href="https://instagram.com/griplaseu" target="_blank" rel="noopener" aria-label="Instagram">Instagram</a>
+          <a href="mailto:hola@griplaseu.com" aria-label="Email">Email</a>
+        </div>
+        <button class="btn btn-primary" @click="modalOpen = true" x-text="$t('nav_cta')"></button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Order form modal (Task 17) -->
+  <div class="modal-overlay" x-show="modalOpen" x-cloak @keydown.escape.window="modalOpen = false" style="display: none;">
+    <div class="modal" x-data="orderForm()" @click.outside="modalOpen = false" role="dialog" aria-modal="true">
+      <button class="modal-close" @click="modalOpen = false" aria-label="Tancar">&times;</button>
+      <!-- form steps go here, added in Task 17 -->
+    </div>
+  </div>
+
+  <section class="hero">
+    <div class="container">
+      <h1 x-text="$t('hero_title')"></h1>
+      <p x-text="$t('hero_subtitle')"></p>
+      <div class="hero-ctas">
+        <button class="btn btn-primary" @click="modalOpen = true" x-text="$t('hero_cta_primary')"></button>
+        <a class="btn btn-secondary" href="#services" x-text="$t('hero_cta_secondary')"></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="services" id="services">
+    <div class="container">
+      <h2 x-text="$t('services_title')"></h2>
+      <div class="service-cards">
+        <article class="service-card">
+          <h3 x-text="$t('service_resolado_completo_title')"></h3>
+          <p x-text="$t('service_resolado_completo_desc')"></p>
+          <p class="price" x-text="$t('service_from') + ' ' + Math.min(precios.bota.resolado_completo, precios.pie_de_gato.resolado_completo) + '€'"></p>
+        </article>
+        <article class="service-card">
+          <h3 x-text="$t('service_media_suela_title')"></h3>
+          <p x-text="$t('service_media_suela_desc')"></p>
+          <p class="price" x-text="$t('service_from') + ' ' + Math.min(precios.bota.media_suela, precios.pie_de_gato.media_suela) + '€'"></p>
+        </article>
+        <article class="service-card">
+          <h3 x-text="$t('service_puntera_title')"></h3>
+          <p x-text="$t('service_puntera_desc')"></p>
+          <p class="price" x-text="$t('service_from') + ' ' + Math.min(precios.bota.puntera, precios.pie_de_gato.puntera) + '€'"></p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p x-text="'Grip La Seu · ' + new Date().getFullYear() + ' · ' + $t('footer_rights')"></p>
+    </div>
+  </footer>
+</body>
+</html>
