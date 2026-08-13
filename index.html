@@ -36,7 +36,154 @@
   <div class="modal-overlay" x-show="modalOpen" x-cloak @keydown.escape.window="modalOpen = false" style="display: none;">
     <div class="modal" x-data="orderForm()" @click.outside="modalOpen = false" role="dialog" aria-modal="true">
       <button class="modal-close" @click="modalOpen = false" aria-label="Tancar">&times;</button>
-      <!-- form steps go here, added in Task 17 -->
+        <div class="step-indicator">
+          <span :class="{ active: step >= 1 }"></span>
+          <span :class="{ active: step >= 2 }"></span>
+          <span :class="{ active: step >= 3 }"></span>
+        </div>
+
+        <template x-if="success">
+          <div>
+            <h2 x-text="$t('gracias_title')"></h2>
+            <p x-text="$t('gracias_paid')"></p>
+            <p><strong x-text="orderId"></strong></p>
+            <ul class="point-list">
+              <template x-for="linea in summaryLines" :key="linea">
+                <li x-text="linea"></li>
+              </template>
+            </ul>
+          </div>
+        </template>
+
+        <template x-if="!success && step === 1">
+          <div>
+            <h2 x-text="$t('step1_title')"></h2>
+
+            <label x-text="$t('tipo_calzado_label')"></label>
+            <div class="toggle-group">
+              <button type="button" class="toggle-option" :class="{ selected: tipoCalzado === 'bota' }" @click="tipoCalzado = 'bota'" x-text="$t('tipo_bota')"></button>
+              <button type="button" class="toggle-option" :class="{ selected: tipoCalzado === 'pie_de_gato' }" @click="tipoCalzado = 'pie_de_gato'" x-text="$t('tipo_pie_de_gato')"></button>
+            </div>
+
+            <label x-text="$t('cantidad_label')"></label>
+            <div class="stepper">
+              <button type="button" @click="cantidad = Math.max(1, cantidad - 1)">−</button>
+              <span x-text="cantidad"></span>
+              <button type="button" @click="cantidad = cantidad + 1">+</button>
+            </div>
+
+            <label x-text="$t('servicio_label')"></label>
+            <div class="toggle-group">
+              <button type="button" class="toggle-option" :class="{ selected: servicio === 'resolado_completo' }" @click="servicio = 'resolado_completo'" x-text="$t('service_resolado_completo_title')"></button>
+              <button type="button" class="toggle-option" :class="{ selected: servicio === 'media_suela' }" @click="servicio = 'media_suela'" x-text="$t('service_media_suela_title')"></button>
+              <button type="button" class="toggle-option" :class="{ selected: servicio === 'puntera' }" @click="servicio = 'puntera'" x-text="$t('service_puntera_title')"></button>
+            </div>
+
+            <p class="price-total" x-show="precioTotal > 0" x-text="$t('precio_total_label') + ': ' + precioTotal.toFixed(2) + '€'"></p>
+
+            <div class="modal-nav">
+              <span></span>
+              <button type="button" class="btn btn-primary" :disabled="!canProceedStep1" @click="step = 2" x-text="$t('btn_siguiente')"></button>
+            </div>
+          </div>
+        </template>
+
+        <template x-if="!success && step === 2">
+          <div>
+            <h2 x-text="$t('step2_title')"></h2>
+
+            <div class="form-field">
+              <label x-text="$t('nombre_label')"></label>
+              <input type="text" x-model="nombre" />
+            </div>
+            <div class="form-field">
+              <label x-text="$t('direccion_label')"></label>
+              <input type="text" x-model="direccion" @blur="buscarPuntosGLS()" />
+            </div>
+            <div class="form-field">
+              <label x-text="$t('telefono_label')"></label>
+              <input type="tel" x-model="telefono" />
+            </div>
+            <div class="form-field">
+              <label x-text="$t('email_label')"></label>
+              <input type="email" x-model="email" />
+            </div>
+
+            <label x-text="$t('entrega_label')"></label>
+
+            <div class="delivery-option-card" :class="{ selected: entregaTipo === 'gls' }" @click="entregaTipo = 'gls'; entregaNombre = ''; metodoPago = ''">
+              <strong x-text="$t('entrega_gls')"></strong>
+              <template x-if="entregaTipo === 'gls'">
+                <div>
+                  <p x-show="geocodeError" class="error-message" x-text="$t('puntos_geocode_error')"></p>
+                  <p x-text="$t('puntos_cercanos_title')"></p>
+                  <ul class="point-list">
+                    <template x-for="punto in puntosCercanos" :key="punto.nombre">
+                      <li>
+                        <label @click.stop>
+                          <input type="radio" name="punto-gls" :value="punto.nombre" x-model="entregaNombre" />
+                          <span x-text="punto.nombre + (punto.distanceKm ? ' (' + punto.distanceKm.toFixed(1) + ' km)' : '')"></span>
+                        </label>
+                      </li>
+                    </template>
+                  </ul>
+                </div>
+              </template>
+            </div>
+
+            <div class="delivery-option-card" :class="{ selected: entregaTipo === 'tienda' }" @click="entregaTipo = 'tienda'; entregaNombre = ''; metodoPago = ''">
+              <strong x-text="$t('entrega_tienda')"></strong>
+              <template x-if="entregaTipo === 'tienda'">
+                <ul class="point-list">
+                  <template x-for="tienda in tiendas" :key="tienda.nombre">
+                    <li>
+                      <label @click.stop>
+                        <input type="radio" name="tienda" :value="tienda.nombre" x-model="entregaNombre" />
+                        <span x-text="tienda.nombre + ' — ' + tienda.direccion"></span>
+                      </label>
+                    </li>
+                  </template>
+                </ul>
+              </template>
+            </div>
+
+            <div class="modal-nav">
+              <button type="button" class="btn btn-secondary" @click="step = 1" x-text="$t('btn_atras')"></button>
+              <button type="button" class="btn btn-primary" :disabled="!canProceedStep2" @click="step = 3" x-text="$t('btn_siguiente')"></button>
+            </div>
+          </div>
+        </template>
+
+        <template x-if="!success && step === 3">
+          <div>
+            <h2 x-text="$t('step3_title')"></h2>
+
+            <label x-text="$t('pago_label')"></label>
+            <div class="toggle-group">
+              <button type="button" class="toggle-option" :class="{ selected: metodoPago === 'bizum' }" @click="metodoPago = 'bizum'" x-text="$t('pago_bizum')"></button>
+              <button type="button" class="toggle-option" :class="{ selected: metodoPago === 'transferencia' }" @click="metodoPago = 'transferencia'" x-text="$t('pago_transferencia')"></button>
+              <button type="button" class="toggle-option" :class="{ selected: metodoPago === 'tarjeta' }" @click="metodoPago = 'tarjeta'" x-text="$t('pago_tarjeta')"></button>
+              <button type="button" class="toggle-option" :class="{ selected: metodoPago === 'efectivo' }" :disabled="entregaTipo !== 'tienda'" @click="metodoPago = 'efectivo'" x-text="$t('pago_efectivo')"></button>
+            </div>
+            <p class="error-message" x-show="entregaTipo !== 'tienda'" x-text="$t('pago_efectivo_solo_tienda')"></p>
+
+            <template x-if="metodoPago === 'bizum'">
+              <p x-text="$t('pago_bizum_instrucciones')"></p>
+            </template>
+            <template x-if="metodoPago === 'transferencia'">
+              <p x-text="$t('pago_transferencia_instrucciones')"></p>
+            </template>
+
+            <p class="error-message" x-show="errorMsg" x-text="errorMsg"></p>
+
+            <div class="modal-nav">
+              <button type="button" class="btn btn-secondary" @click="step = 2" x-text="$t('btn_atras')"></button>
+              <button type="button" class="btn btn-primary" x-show="metodoPago === 'tarjeta'" :disabled="submitting" @click="pagarConTarjeta()" x-text="$t('btn_pagar_tarjeta')"></button>
+              <button type="button" class="btn btn-primary" x-show="metodoPago === 'bizum' || metodoPago === 'transferencia'" :disabled="submitting" @click="confirmarPedido()" x-text="$t('btn_ya_envie')"></button>
+              <button type="button" class="btn btn-primary" x-show="metodoPago === 'efectivo'" :disabled="submitting" @click="confirmarPedido()" x-text="$t('btn_confirmar_pedido')"></button>
+            </div>
+          </div>
+        </template>
     </div>
   </div>
 
