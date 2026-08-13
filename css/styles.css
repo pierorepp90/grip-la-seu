@@ -7,6 +7,8 @@
   --color-cream: #f5f1e8;
   --color-slate: #8b99b3;
   --color-white: #ffffff;
+  --color-inactive: #e4e0d4;
+  --color-border-light: #eee;
   --radius: 10px;
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
   --max-width: 1100px;
@@ -268,6 +270,11 @@ footer.site-footer {
   cursor: pointer;
 }
 
+.modal-close:hover,
+.modal-close:focus-visible {
+  color: var(--color-amber);
+}
+
 .step-indicator {
   display: flex;
   gap: 0.5rem;
@@ -278,7 +285,7 @@ footer.site-footer {
   flex: 1;
   height: 4px;
   border-radius: 2px;
-  background: #e4e0d4;
+  background: var(--color-inactive);
 }
 
 .step-indicator span.active {
@@ -298,6 +305,11 @@ footer.site-footer {
   padding: 0.5rem 1rem;
   background: var(--color-white);
   cursor: pointer;
+}
+
+.toggle-option:hover,
+.toggle-option:focus-visible {
+  border-color: var(--color-amber);
 }
 
 .toggle-option.selected {
@@ -322,6 +334,12 @@ footer.site-footer {
   background: var(--color-white);
   font-size: 1.25rem;
   cursor: pointer;
+}
+
+.stepper button:hover,
+.stepper button:focus-visible {
+  border-color: var(--color-amber);
+  outline: none;
 }
 
 .price-total {
@@ -349,6 +367,12 @@ footer.site-footer {
   font-size: 1rem;
 }
 
+.form-field input:focus {
+  outline: 2px solid var(--color-amber);
+  outline-offset: 1px;
+  border-color: var(--color-amber);
+}
+
 .delivery-option-card,
 .payment-option-card {
   border: 1px solid var(--color-slate);
@@ -356,6 +380,13 @@ footer.site-footer {
   padding: 1rem;
   margin-bottom: 0.75rem;
   cursor: pointer;
+}
+
+.delivery-option-card:hover,
+.payment-option-card:hover,
+.delivery-option-card:focus-visible,
+.payment-option-card:focus-visible {
+  border-color: var(--color-amber);
 }
 
 .delivery-option-card.selected,
@@ -372,7 +403,7 @@ footer.site-footer {
 
 .point-list li {
   padding: 0.5rem 0;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--color-border-light);
 }
 
 .modal-nav {
