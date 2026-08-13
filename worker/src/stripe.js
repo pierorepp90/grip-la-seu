@@ -75,6 +75,7 @@ export async function createStripeSession(params, secretKey, fetchFn = fetch) {
 
 export async function retrieveStripeSession(sessionId, secretKey, fetchFn = fetch) {
   const response = await fetchFn(`https://api.stripe.com/v1/checkout/sessions/${sessionId}`, {
+    method: 'GET',
     headers: { Authorization: `Bearer ${secretKey}` },
   });
   if (!response.ok) {
