@@ -105,8 +105,12 @@ configurado.
 
 ### Paso 2 — Datos y entrega
 
-- Campos: nombre, dirección, teléfono. Validación básica: campos no vacíos,
-  teléfono con formato español.
+- Campos: nombre, dirección, teléfono, email. Validación básica: campos no
+  vacíos, teléfono con formato español, email con formato válido. El email es
+  necesario para poder enviarle la confirmación de pedido vía Resend (el
+  requisito original no lo mencionaba explícitamente pero es imprescindible
+  para cumplir "se envía... al comprador del servicio confirmando la
+  recepción del pedido").
 - Entrega, dos tarjetas seleccionables (excluyentes):
   - **Punto GLS**: al introducir la dirección se geocodifica gratis con
     Nominatim (OpenStreetMap) y se muestran los 2-3 puntos más cercanos de una
@@ -146,8 +150,8 @@ para el MVP.
 ## Emails (Resend)
 
 - Al propietario: todos los datos del pedido (tipo de calzado, cantidad,
-  servicio, precio, nombre, dirección, teléfono, entrega elegida, método de
-  pago).
+  servicio, precio, nombre, dirección, teléfono, email, entrega elegida,
+  método de pago).
 - Al comprador: confirmación con resumen del pedido y próximos pasos (a qué
   punto GLS/tienda llevar el calzado, o confirmación de pago con tarjeta
   recibido).
