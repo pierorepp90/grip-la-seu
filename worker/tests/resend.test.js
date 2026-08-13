@@ -47,3 +47,19 @@ test('sendEmail lanza error si Resend responde con error', async () => {
   const fakeFetch = async () => ({ ok: false });
   await assert.rejects(() => sendEmail({}, 're_test_123', fakeFetch));
 });
+
+test('buildOwnerEmail escapa caracteres HTML en campos de usuario', () => {
+  const maliciousPayload = {
+    ...orderPayload,
+    nombre: '<script>alert(1)</script>',
+    direccion: '"><img src=x>',
+    email: 'test<script>@example.com',
+  };
+  const email = buildOwnerEmail(maliciousPayload, 'owner@example.com');
+  // Verify that HTML special characters are escaped, preventing XSS
+  assert(!email.html.includes('<script>'));
+  assert(email.html.includes('&lt;script&gt;'));
+  assert(!email.html.includes('<img'));
+  assert(email.html.includes('&lt;img'));
+  assert(email.html.includes('&quot;&gt;&lt;img'));
+});

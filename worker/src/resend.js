@@ -1,5 +1,15 @@
 const FROM_ADDRESS = 'Grip La Seu <onboarding@resend.dev>';
 
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[char]);
+}
+
 function entregaTexto(entrega) {
   return entrega.tipo === 'gls'
     ? `Punto GLS: ${entrega.nombre}`
@@ -32,10 +42,10 @@ export function buildOwnerEmail(orderPayload, ownerEmail) {
         <li>Servicio: ${servicio}</li>
         <li>Cantidad: ${cantidad}</li>
         <li>Precio total: ${precioTotal.toFixed(2)}€</li>
-        <li>Nombre: ${nombre}</li>
-        <li>Dirección: ${direccion}</li>
+        <li>Nombre: ${escapeHtml(nombre)}</li>
+        <li>Dirección: ${escapeHtml(direccion)}</li>
         <li>Teléfono: ${telefono}</li>
-        <li>Email: ${email}</li>
+        <li>Email: ${escapeHtml(email)}</li>
         <li>Entrega: ${entregaTexto(entrega)}</li>
         <li>Pago: ${metodoPago}</li>
       </ul>
