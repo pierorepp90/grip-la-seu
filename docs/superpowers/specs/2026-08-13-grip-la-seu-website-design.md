@@ -147,6 +147,13 @@ realizado (el propietario debería revisar el panel de Stripe periódicamente
 como red de seguridad). Añadir un webhook es una mejora futura, no necesaria
 para el MVP.
 
+**Limitación relacionada, también aceptada**: por el mismo motivo (sin base
+de datos, sin forma de deduplicar), si el cliente recarga `gracias.html`
+después de un pago ya confirmado, el Worker reenvía ambos emails de
+confirmación. Detectado durante la revisión de código de la Tarea 11 y
+documentado aquí en vez de añadir infraestructura (p. ej. Workers KV) solo
+para esto; se puede revisar si en producción resulta molesto.
+
 ## Emails (Resend)
 
 - Al propietario: todos los datos del pedido (tipo de calzado, cantidad,
