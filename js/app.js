@@ -83,7 +83,12 @@ document.addEventListener('alpine:init', () => {
 
     async buscarPuntosGLS() {
       if (!isNonEmpty(this.direccion)) return;
-      const coords = await geocodeAddress(this.direccion);
+      let coords = null;
+      try {
+        coords = await geocodeAddress(this.direccion);
+      } catch (error) {
+        console.error(error);
+      }
       if (!coords) {
         this.geocodeError = true;
         this.puntosCercanos = PUNTOS_GLS;
@@ -121,6 +126,7 @@ document.addEventListener('alpine:init', () => {
         this.summaryLines = buildOrderSummary(payload).lineas;
         this.success = true;
       } catch (error) {
+        console.error(error);
         this.errorMsg = t(Alpine.store('i18n').lang, 'form_error_generic');
       } finally {
         this.submitting = false;
@@ -135,6 +141,7 @@ document.addEventListener('alpine:init', () => {
         const { url } = await createCheckoutSession(API_BASE_URL, payload);
         window.location.href = url;
       } catch (error) {
+        console.error(error);
         this.errorMsg = t(Alpine.store('i18n').lang, 'form_error_generic');
         this.submitting = false;
       }
