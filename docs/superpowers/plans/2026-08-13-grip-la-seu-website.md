@@ -2112,8 +2112,8 @@ git commit -m "feat: add placeholder logo asset"
   <title>Grip La Seu — Ressolats de peus de gat</title>
   <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="css/styles.css" />
-  <script defer src="https://unpkg.com/alpinejs@3/dist/cdn.min.js"></script>
   <script type="module" src="js/app.js"></script>
+  <script defer src="https://unpkg.com/alpinejs@3/dist/cdn.min.js"></script>
 </head>
 <body x-data="site()">
   <header class="site-header">
@@ -2203,6 +2203,18 @@ Notes for the engineer:
 - `precios` on `site()` is the imported `PRECIOS` object (Task 18 wires this
   import), so the services section can show live "desde X€" prices without a
   duplicate data source.
+- **Script order matters and was fixed during Task 18's review**: `js/app.js`
+  (`type="module"`) must come BEFORE the Alpine CDN `<script defer>`, not
+  after. Alpine's CDN build calls `Alpine.start()` synchronously as soon as
+  its own script executes — it does not wait for `DOMContentLoaded` or for
+  other deferred scripts. If the Alpine script runs first, it dispatches
+  `alpine:init` and walks the DOM immediately, before `app.js` has had a
+  chance to register `Alpine.data(...)`/`Alpine.magic(...)` via its own
+  `alpine:init` listener, so every `x-data="site()"` / `orderForm()` / `$t()`
+  expression throws `ReferenceError`. Putting `app.js` first (both tags are
+  still deferred, so DOM parsing isn't blocked either way) ensures its
+  `alpine:init` listener is registered before Alpine's script fires that
+  event. Verified empirically in a real browser during Task 18.
 
 - [ ] **Step 2: Add the `x-cloak` rule to `css/styles.css`**
 
