@@ -43,6 +43,7 @@ async function run() {
       render('gracias_title', 'gracias_not_paid');
     }
   } catch (error) {
+    console.error(error);
     render('gracias_title', 'gracias_not_paid');
   }
 }
