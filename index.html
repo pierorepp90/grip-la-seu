@@ -93,25 +93,25 @@
             <h2 x-text="$t('step2_title')"></h2>
 
             <div class="form-field">
-              <label x-text="$t('nombre_label')"></label>
-              <input type="text" x-model="nombre" />
+              <label for="of-nombre" x-text="$t('nombre_label')"></label>
+              <input id="of-nombre" type="text" x-model="nombre" />
             </div>
             <div class="form-field">
-              <label x-text="$t('direccion_label')"></label>
-              <input type="text" x-model="direccion" @blur="buscarPuntosGLS()" />
+              <label for="of-direccion" x-text="$t('direccion_label')"></label>
+              <input id="of-direccion" type="text" x-model="direccion" @blur="buscarPuntosGLS()" />
             </div>
             <div class="form-field">
-              <label x-text="$t('telefono_label')"></label>
-              <input type="tel" x-model="telefono" />
+              <label for="of-telefono" x-text="$t('telefono_label')"></label>
+              <input id="of-telefono" type="tel" x-model="telefono" />
             </div>
             <div class="form-field">
-              <label x-text="$t('email_label')"></label>
-              <input type="email" x-model="email" />
+              <label for="of-email" x-text="$t('email_label')"></label>
+              <input id="of-email" type="email" x-model="email" />
             </div>
 
             <label x-text="$t('entrega_label')"></label>
 
-            <div class="delivery-option-card" :class="{ selected: entregaTipo === 'gls' }" @click="entregaTipo = 'gls'; entregaNombre = ''; metodoPago = ''">
+            <div class="delivery-option-card" :class="{ selected: entregaTipo === 'gls' }" tabindex="0" role="button" @click="if (entregaTipo !== 'gls') { entregaTipo = 'gls'; entregaNombre = ''; metodoPago = ''; }" @keydown.enter="if (entregaTipo !== 'gls') { entregaTipo = 'gls'; entregaNombre = ''; metodoPago = ''; }" @keydown.space.prevent="if (entregaTipo !== 'gls') { entregaTipo = 'gls'; entregaNombre = ''; metodoPago = ''; }">
               <strong x-text="$t('entrega_gls')"></strong>
               <template x-if="entregaTipo === 'gls'">
                 <div>
@@ -131,7 +131,7 @@
               </template>
             </div>
 
-            <div class="delivery-option-card" :class="{ selected: entregaTipo === 'tienda' }" @click="entregaTipo = 'tienda'; entregaNombre = ''; metodoPago = ''">
+            <div class="delivery-option-card" :class="{ selected: entregaTipo === 'tienda' }" tabindex="0" role="button" @click="if (entregaTipo !== 'tienda') { entregaTipo = 'tienda'; entregaNombre = ''; metodoPago = ''; }" @keydown.enter="if (entregaTipo !== 'tienda') { entregaTipo = 'tienda'; entregaNombre = ''; metodoPago = ''; }" @keydown.space.prevent="if (entregaTipo !== 'tienda') { entregaTipo = 'tienda'; entregaNombre = ''; metodoPago = ''; }">
               <strong x-text="$t('entrega_tienda')"></strong>
               <template x-if="entregaTipo === 'tienda'">
                 <ul class="point-list">
