@@ -1,0 +1,8 @@
+name = "grip-la-seu-api"
+main = "src/index.js"
+compatibility_date = "2026-08-13"
+
+[vars]
+SITE_URL = "https://pierorepp90.github.io/grip-la-seu"
+ALLOWED_ORIGIN = "https://pierorepp90.github.io"
+OWNER_EMAIL = "placeholder@example.com"
