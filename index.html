@@ -111,7 +111,7 @@
 
             <label x-text="$t('entrega_label')"></label>
 
-            <div class="delivery-option-card" :class="{ selected: entregaTipo === 'gls' }" tabindex="0" role="button" @click="if (entregaTipo !== 'gls') { entregaTipo = 'gls'; entregaNombre = ''; metodoPago = ''; }" @keydown.enter="if (entregaTipo !== 'gls') { entregaTipo = 'gls'; entregaNombre = ''; metodoPago = ''; }" @keydown.space.prevent="if (entregaTipo !== 'gls') { entregaTipo = 'gls'; entregaNombre = ''; metodoPago = ''; }">
+            <div class="delivery-option-card" :class="{ selected: entregaTipo === 'gls' }" tabindex="0" role="button" :aria-pressed="entregaTipo === 'gls'" @click="if (entregaTipo !== 'gls') { entregaTipo = 'gls'; entregaNombre = ''; metodoPago = ''; }" @keydown.enter.self="if (entregaTipo !== 'gls') { entregaTipo = 'gls'; entregaNombre = ''; metodoPago = ''; }" @keydown.space.prevent.self="if (entregaTipo !== 'gls') { entregaTipo = 'gls'; entregaNombre = ''; metodoPago = ''; }">
               <strong x-text="$t('entrega_gls')"></strong>
               <template x-if="entregaTipo === 'gls'">
                 <div>
@@ -131,7 +131,7 @@
               </template>
             </div>
 
-            <div class="delivery-option-card" :class="{ selected: entregaTipo === 'tienda' }" tabindex="0" role="button" @click="if (entregaTipo !== 'tienda') { entregaTipo = 'tienda'; entregaNombre = ''; metodoPago = ''; }" @keydown.enter="if (entregaTipo !== 'tienda') { entregaTipo = 'tienda'; entregaNombre = ''; metodoPago = ''; }" @keydown.space.prevent="if (entregaTipo !== 'tienda') { entregaTipo = 'tienda'; entregaNombre = ''; metodoPago = ''; }">
+            <div class="delivery-option-card" :class="{ selected: entregaTipo === 'tienda' }" tabindex="0" role="button" :aria-pressed="entregaTipo === 'tienda'" @click="if (entregaTipo !== 'tienda') { entregaTipo = 'tienda'; entregaNombre = ''; metodoPago = ''; }" @keydown.enter.self="if (entregaTipo !== 'tienda') { entregaTipo = 'tienda'; entregaNombre = ''; metodoPago = ''; }" @keydown.space.prevent.self="if (entregaTipo !== 'tienda') { entregaTipo = 'tienda'; entregaNombre = ''; metodoPago = ''; }">
               <strong x-text="$t('entrega_tienda')"></strong>
               <template x-if="entregaTipo === 'tienda'">
                 <ul class="point-list">
