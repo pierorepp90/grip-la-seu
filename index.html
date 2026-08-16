@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Grip La Seu — Ressolats de peus de gat</title>
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <script type="module" src="js/app.js"></script>
+  <script defer src="https://unpkg.com/alpinejs@3/dist/cdn.min.js"></script>
+</head>
+<body x-data="site()">
+  <header class="site-header">
+    <div class="container">
+      <div class="logo">
+        <img src="assets/logo.svg" alt="Grip La Seu" />
+      </div>
+      <button class="menu-toggle" @click="menuOpen = !menuOpen" aria-label="Menú">&#9776;</button>
+      <div class="header-controls" :class="{ open: menuOpen }">
+        <div class="lang-switch" role="group" aria-label="Idioma">
+          <template x-for="lang in langs" :key="lang">
+            <button @click="setLang(lang)" :aria-current="lang === $store.i18n.lang" x-text="lang.toUpperCase()"></button>
+          </template>
+        </div>
+        <div class="social-links">
+          <a href="https://wa.me/34669918744" target="_blank" rel="noopener" aria-label="WhatsApp">WhatsApp</a>
+          <a href="https://instagram.com/griplaseu" target="_blank" rel="noopener" aria-label="Instagram">Instagram</a>
+          <a href="mailto:hola@griplaseu.com" aria-label="Email">Email</a>
+        </div>
+        <button class="btn btn-primary" @click="modalOpen = true" x-text="$t('nav_cta')"></button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Order form modal (Task 17) -->
+  <div class="modal-overlay" x-show="modalOpen" x-cloak @keydown.escape.window="modalOpen = false" style="display: none;">
+    <div class="modal" x-data="orderForm()" @click.outside="modalOpen = false" role="dialog" aria-modal="true">
+      <button class="modal-close" @click="modalOpen = false" aria-label="Tancar">&times;</button>
+        <div class="step-indicator">
+          <span :class="{ active: step >= 1 }"></span>
+          <span :class="{ active: step >= 2 }"></span>
+          <span :class="{ active: step >= 3 }"></span>
+        </div>
+
+        <template x-if="success">
+          <div>
+            <h2 x-text="$t('gracias_title')"></h2>
+            <p x-text="$t('gracias_paid')"></p>
+            <p><strong x-text="orderId"></strong></p>
+            <ul class="point-list">
+              <template x-for="linea in summaryLines" :key="linea">
+                <li x-text="linea"></li>
+              </template>
+            </ul>
+          </div>
+        </template>
+
+        <template x-if="!success && step === 1">
+          <div>
+            <h2 x-text="$t('step1_title')"></h2>
+
+            <label x-text="$t('tipo_calzado_label')"></label>
+            <div class="toggle-group">
+              <button type="button" class="toggle-option" :class="{ selected: tipoCalzado === 'bota' }" @click="tipoCalzado = 'bota'" x-text="$t('tipo_bota')"></button>
+              <button type="button" class="toggle-option" :class="{ selected: tipoCalzado === 'pie_de_gato' }" @click="tipoCalzado = 'pie_de_gato'" x-text="$t('tipo_pie_de_gato')"></button>
+            </div>
+
+            <label x-text="$t('cantidad_label')"></label>
+            <div class="stepper">
+              <button type="button" @click="cantidad = Math.max(1, cantidad - 1)">−</button>
+              <span x-text="cantidad"></span>
+              <button type="button" @click="cantidad = cantidad + 1">+</button>
+            </div>
+
+            <label x-text="$t('servicio_label')"></label>
+            <div class="toggle-group">
+              <button type="button" class="toggle-option" :class="{ selected: servicio === 'resolado_completo' }" @click="servicio = 'resolado_completo'" x-text="$t('service_resolado_completo_title')"></button>
+              <button type="button" class="toggle-option" :class="{ selected: servicio === 'media_suela' }" @click="servicio = 'media_suela'" x-text="$t('service_media_suela_title')"></button>
+              <button type="button" class="toggle-option" :class="{ selected: servicio === 'puntera' }" @click="servicio = 'puntera'" x-text="$t('service_puntera_title')"></button>
+            </div>
+
+            <p class="price-total" x-show="precioTotal > 0" x-text="$t('precio_total_label') + ': ' + precioTotal.toFixed(2) + '€'"></p>
+
+            <div class="modal-nav">
+              <span></span>
+              <button type="button" class="btn btn-primary" :disabled="!canProceedStep1" @click="step = 2" x-text="$t('btn_siguiente')"></button>
+            </div>
+          </div>
+        </template>
+
+        <template x-if="!success && step === 2">
+          <div>
+            <h2 x-text="$t('step2_title')"></h2>
+
+            <div class="form-field">
+              <label for="of-nombre" x-text="$t('nombre_label')"></label>
+              <input id="of-nombre" type="text" x-model="nombre" />
+            </div>
+            <div class="form-field">
+              <label for="of-direccion" x-text="$t('direccion_label')"></label>
+              <input id="of-direccion" type="text" x-model="direccion" @blur="buscarPuntosGLS()" />
+            </div>
+            <div class="form-field">
+              <label for="of-telefono" x-text="$t('telefono_label')"></label>
+              <input id="of-telefono" type="tel" x-model="telefono" />
+            </div>
+            <div class="form-field">
+              <label for="of-email" x-text="$t('email_label')"></label>
+              <input id="of-email" type="email" x-model="email" />
+            </div>
+
+            <label x-text="$t('entrega_label')"></label>
+
+            <div class="delivery-option-card" :class="{ selected: entregaTipo === 'gls' }" tabindex="0" role="button" :aria-pressed="entregaTipo === 'gls'" @click="if (entregaTipo !== 'gls') { entregaTipo = 'gls'; entregaNombre = ''; metodoPago = ''; }" @keydown.enter.self="if (entregaTipo !== 'gls') { entregaTipo = 'gls'; entregaNombre = ''; metodoPago = ''; }" @keydown.space.prevent.self="if (entregaTipo !== 'gls') { entregaTipo = 'gls'; entregaNombre = ''; metodoPago = ''; }">
+              <strong x-text="$t('entrega_gls')"></strong>
+              <template x-if="entregaTipo === 'gls'">
+                <div>
+                  <p x-show="geocodeError" class="error-message" x-text="$t('puntos_geocode_error')"></p>
+                  <p x-text="$t('puntos_cercanos_title')"></p>
+                  <ul class="point-list">
+                    <template x-for="punto in puntosCercanos" :key="punto.nombre">
+                      <li>
+                        <label @click.stop>
+                          <input type="radio" name="punto-gls" :value="punto.nombre" x-model="entregaNombre" />
+                          <span x-text="punto.nombre + (punto.distanceKm ? ' (' + punto.distanceKm.toFixed(1) + ' km)' : '')"></span>
+                        </label>
+                      </li>
+                    </template>
+                  </ul>
+                </div>
+              </template>
+            </div>
+
+            <div class="delivery-option-card" :class="{ selected: entregaTipo === 'tienda' }" tabindex="0" role="button" :aria-pressed="entregaTipo === 'tienda'" @click="if (entregaTipo !== 'tienda') { entregaTipo = 'tienda'; entregaNombre = ''; metodoPago = ''; }" @keydown.enter.self="if (entregaTipo !== 'tienda') { entregaTipo = 'tienda'; entregaNombre = ''; metodoPago = ''; }" @keydown.space.prevent.self="if (entregaTipo !== 'tienda') { entregaTipo = 'tienda'; entregaNombre = ''; metodoPago = ''; }">
+              <strong x-text="$t('entrega_tienda')"></strong>
+              <template x-if="entregaTipo === 'tienda'">
+                <ul class="point-list">
+                  <template x-for="tienda in tiendas" :key="tienda.nombre">
+                    <li>
+                      <label @click.stop>
+                        <input type="radio" name="tienda" :value="tienda.nombre" x-model="entregaNombre" />
+                        <span x-text="tienda.nombre + ' — ' + tienda.direccion"></span>
+                      </label>
+                    </li>
+                  </template>
+                </ul>
+              </template>
+            </div>
+
+            <div class="modal-nav">
+              <button type="button" class="btn btn-secondary" @click="step = 1" x-text="$t('btn_atras')"></button>
+              <button type="button" class="btn btn-primary" :disabled="!canProceedStep2" @click="step = 3" x-text="$t('btn_siguiente')"></button>
+            </div>
+          </div>
+        </template>
+
+        <template x-if="!success && step === 3">
+          <div>
+            <h2 x-text="$t('step3_title')"></h2>
+
+            <label x-text="$t('pago_label')"></label>
+            <div class="toggle-group">
+              <button type="button" class="toggle-option" :class="{ selected: metodoPago === 'bizum' }" @click="metodoPago = 'bizum'" x-text="$t('pago_bizum')"></button>
+              <button type="button" class="toggle-option" :class="{ selected: metodoPago === 'transferencia' }" @click="metodoPago = 'transferencia'" x-text="$t('pago_transferencia')"></button>
+              <button type="button" class="toggle-option" :class="{ selected: metodoPago === 'tarjeta' }" @click="metodoPago = 'tarjeta'" x-text="$t('pago_tarjeta')"></button>
+              <button type="button" class="toggle-option" :class="{ selected: metodoPago === 'efectivo' }" :disabled="entregaTipo !== 'tienda'" @click="metodoPago = 'efectivo'" x-text="$t('pago_efectivo')"></button>
+            </div>
+            <p class="error-message" x-show="entregaTipo !== 'tienda'" x-text="$t('pago_efectivo_solo_tienda')"></p>
+
+            <template x-if="metodoPago === 'bizum'">
+              <p x-text="$t('pago_bizum_instrucciones')"></p>
+            </template>
+            <template x-if="metodoPago === 'transferencia'">
+              <p x-text="$t('pago_transferencia_instrucciones')"></p>
+            </template>
+
+            <p class="error-message" x-show="errorMsg" x-text="errorMsg"></p>
+
+            <div class="modal-nav">
+              <button type="button" class="btn btn-secondary" @click="step = 2" x-text="$t('btn_atras')"></button>
+              <button type="button" class="btn btn-primary" x-show="metodoPago === 'tarjeta'" :disabled="submitting" @click="pagarConTarjeta()" x-text="$t('btn_pagar_tarjeta')"></button>
+              <button type="button" class="btn btn-primary" x-show="metodoPago === 'bizum' || metodoPago === 'transferencia'" :disabled="submitting" @click="confirmarPedido()" x-text="$t('btn_ya_envie')"></button>
+              <button type="button" class="btn btn-primary" x-show="metodoPago === 'efectivo'" :disabled="submitting" @click="confirmarPedido()" x-text="$t('btn_confirmar_pedido')"></button>
+            </div>
+          </div>
+        </template>
+    </div>
+  </div>
+
+  <section class="hero">
+    <div class="container">
+      <h1 x-text="$t('hero_title')"></h1>
+      <p x-text="$t('hero_subtitle')"></p>
+      <div class="hero-ctas">
+        <button class="btn btn-primary" @click="modalOpen = true" x-text="$t('hero_cta_primary')"></button>
+        <a class="btn btn-secondary" href="#services" x-text="$t('hero_cta_secondary')"></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="services" id="services">
+    <div class="container">
+      <h2 x-text="$t('services_title')"></h2>
+      <div class="service-cards">
+        <article class="service-card">
+          <h3 x-text="$t('service_resolado_completo_title')"></h3>
+          <p x-text="$t('service_resolado_completo_desc')"></p>
+          <p class="price" x-text="$t('service_from') + ' ' + Math.min(precios.bota.resolado_completo, precios.pie_de_gato.resolado_completo) + '€'"></p>
+        </article>
+        <article class="service-card">
+          <h3 x-text="$t('service_media_suela_title')"></h3>
+          <p x-text="$t('service_media_suela_desc')"></p>
+          <p class="price" x-text="$t('service_from') + ' ' + Math.min(precios.bota.media_suela, precios.pie_de_gato.media_suela) + '€'"></p>
+        </article>
+        <article class="service-card">
+          <h3 x-text="$t('service_puntera_title')"></h3>
+          <p x-text="$t('service_puntera_desc')"></p>
+          <p class="price" x-text="$t('service_from') + ' ' + Math.min(precios.bota.puntera, precios.pie_de_gato.puntera) + '€'"></p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p x-text="'Grip La Seu · ' + new Date().getFullYear() + ' · ' + $t('footer_rights')"></p>
+    </div>
+  </footer>
+</body>
+</html>
