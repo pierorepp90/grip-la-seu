@@ -5,3 +5,4 @@ worker/.dev.vars
 .DS_Store
 .playwright-mcp/
 /Archivos/
+.superpowers/
