@@ -5,7 +5,7 @@ import {
   createStripeSession,
   retrieveStripeSession,
   parseSessionPaymentStatus,
-  orderPayloadFromSessionMetadata,
+  orderPayloadFromSession,
 } from './stripe.js';
 import { buildOwnerEmail, buildCustomerEmail, sendEmail } from './resend.js';
 
@@ -41,7 +41,7 @@ async function handleConfirmPayment(url, env, cors) {
   if (!parseSessionPaymentStatus(session)) {
     return Response.json({ ok: true, paid: false }, { headers: cors });
   }
-  const orderPayload = orderPayloadFromSessionMetadata(session);
+  const orderPayload = orderPayloadFromSession(session);
   const ownerEmail = buildOwnerEmail(orderPayload, env.OWNER_EMAIL);
   const customerEmail = buildCustomerEmail(orderPayload, orderPayload.email);
   await Promise.all([
