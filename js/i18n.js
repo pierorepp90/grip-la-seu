@@ -8,7 +8,7 @@ export const DICT = {
     hero_title: 'Dona una segona vida als teus peus de gat',
     hero_subtitle:
       'Ressolats professionals de calçat d\'escalada al cor del Pirineu: recollida fàcil, entrega ràpida.',
-    hero_cta_primary: 'Coordinar recollida',
+    hero_cta_primary: 'Ressolar peus de gat',
     hero_cta_secondary: 'Veure serveis',
     services_title: 'Els nostres serveis',
     service_resolado_completo_title: 'Ressolat complet',
@@ -64,7 +64,7 @@ export const DICT = {
     hero_title: 'Dale una segunda vida a tus pies de gato',
     hero_subtitle:
       'Resolados profesionales de calzado de escalada en el corazón del Pirineo: recogida fácil, entrega rápida.',
-    hero_cta_primary: 'Coordinar recogida',
+    hero_cta_primary: 'Resuela tus gatos',
     hero_cta_secondary: 'Ver servicios',
     services_title: 'Nuestros servicios',
     service_resolado_completo_title: 'Resolado completo',
@@ -120,7 +120,7 @@ export const DICT = {
     hero_title: 'Give your climbing shoes a second life',
     hero_subtitle:
       'Professional climbing shoe resoling in the heart of the Pyrenees: easy pickup, fast turnaround.',
-    hero_cta_primary: 'Arrange pickup',
+    hero_cta_primary: 'Resole climbing shoes',
     hero_cta_secondary: 'See services',
     services_title: 'Our services',
     service_resolado_completo_title: 'Full resole',

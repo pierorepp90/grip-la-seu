@@ -93,9 +93,21 @@ header.site-header {
 }
 
 .social-links a {
-  font-size: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 0.35rem;
   line-height: 1;
+}
+
+.social-links svg {
+  width: 20px;
+  height: 20px;
+}
+
+.social-links a:hover,
+.social-links a:focus-visible {
+  color: var(--color-amber);
 }
 
 .menu-toggle {
@@ -137,8 +149,15 @@ header.site-header {
   text-align: center;
 }
 
+.hero-logo {
+  display: block;
+  width: 100%;
+  max-width: 280px;
+  margin: 0 auto 1.5rem;
+}
+
 .hero h1 {
-  font-size: clamp(1.75rem, 4vw, 3rem);
+  font-size: clamp(1.5rem, 3.2vw, 2.5rem);
   margin-bottom: 0.75rem;
 }
 
@@ -154,6 +173,10 @@ header.site-header {
   gap: 1rem;
   justify-content: center;
   flex-wrap: wrap;
+}
+
+.hero-cta-primary {
+  min-width: 235px;
 }
 
 .btn {
