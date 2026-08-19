@@ -1,4 +1,4 @@
-const FROM_ADDRESS = 'Grip La Seu <onboarding@resend.dev>';
+const FROM_ADDRESS = 'Grip La Seu <pedidos@griplaseu.es>';
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (char) => ({
