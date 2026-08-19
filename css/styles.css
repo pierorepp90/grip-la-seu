@@ -342,29 +342,6 @@ footer.site-footer {
   font-weight: 600;
 }
 
-.stepper {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.stepper button {
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: 50%;
-  border: 1px solid var(--color-slate);
-  background: var(--color-white);
-  font-size: 1.25rem;
-  cursor: pointer;
-}
-
-.stepper button:hover,
-.stepper button:focus-visible {
-  border-color: var(--color-amber);
-  outline: none;
-}
-
 .price-total {
   font-size: 1.5rem;
   font-weight: 700;
