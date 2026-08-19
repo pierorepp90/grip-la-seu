@@ -216,6 +216,20 @@ header.site-header {
   border-color: var(--color-cream);
 }
 
+/* Inside the (light-background) modal, .btn-secondary needs dark text/border
+   instead of the cream tone used against the dark hero section, or it's
+   invisible (buttons: "Atrás", "Añadir"). */
+.modal .btn-secondary {
+  color: var(--color-navy);
+  border-color: var(--color-slate);
+}
+
+.modal .btn-secondary:hover:not(:disabled),
+.modal .btn-secondary:focus-visible:not(:disabled) {
+  border-color: var(--color-amber);
+  color: var(--color-amber-dark);
+}
+
 /* Services */
 .services {
   padding: 3.5rem 0;
