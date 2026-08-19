@@ -74,25 +74,87 @@
 
             <label x-text="$t('tipo_calzado_label')"></label>
             <div class="toggle-group">
-              <button type="button" class="toggle-option" :class="{ selected: tipoCalzado === 'bota' }" @click="tipoCalzado = 'bota'" x-text="$t('tipo_bota')"></button>
               <button type="button" class="toggle-option" :class="{ selected: tipoCalzado === 'pie_de_gato' }" @click="tipoCalzado = 'pie_de_gato'" x-text="$t('tipo_pie_de_gato')"></button>
+              <button type="button" class="toggle-option" :class="{ selected: tipoCalzado === 'bota' }" @click="tipoCalzado = 'bota'" x-text="$t('tipo_bota')"></button>
             </div>
 
-            <label x-text="$t('cantidad_label')"></label>
-            <div class="stepper">
-              <button type="button" @click="cantidad = Math.max(1, cantidad - 1)">−</button>
-              <span x-text="cantidad"></span>
-              <button type="button" @click="cantidad = cantidad + 1">+</button>
+            <div class="service-item">
+              <div class="service-item-header">
+                <strong x-text="$t('service_resolado_completo_title')"></strong>
+              </div>
+              <div class="service-item-selects">
+                <select x-model="resoladoMaterial" :aria-label="$t('material_label')">
+                  <option value="vibram_xs_grip2" x-text="$t('material_vibram_xs_grip2')"></option>
+                  <option value="cocida" x-text="$t('material_cocida')"></option>
+                </select>
+                <select x-model="resoladoGrosor" :aria-label="$t('grosor_label')">
+                  <option value="3.5">3.5 mm</option>
+                  <option value="4">4 mm</option>
+                  <option value="4.5">4.5 mm</option>
+                  <option value="5">5 mm</option>
+                </select>
+              </div>
+              <div class="service-item-footer">
+                <span x-text="precioResolado.toFixed(2) + '€/ud'"></span>
+                <button type="button" class="btn btn-secondary" @click="anadirResolado()" x-text="$t('btn_anadir')"></button>
+              </div>
             </div>
 
-            <label x-text="$t('servicio_label')"></label>
-            <div class="toggle-group">
-              <button type="button" class="toggle-option" :class="{ selected: servicio === 'resolado_completo' }" @click="servicio = 'resolado_completo'" x-text="$t('service_resolado_completo_title')"></button>
-              <button type="button" class="toggle-option" :class="{ selected: servicio === 'media_suela' }" @click="servicio = 'media_suela'" x-text="$t('service_media_suela_title')"></button>
-              <button type="button" class="toggle-option" :class="{ selected: servicio === 'puntera' }" @click="servicio = 'puntera'" x-text="$t('service_puntera_title')"></button>
+            <div class="service-item">
+              <div class="service-item-header">
+                <strong x-text="$t('service_media_suela_title')"></strong>
+              </div>
+              <div class="service-item-selects">
+                <select x-model="mediaSuelaMaterial" :aria-label="$t('material_label')">
+                  <option value="vibram_xs_grip2" x-text="$t('material_vibram_xs_grip2')"></option>
+                  <option value="cocida" x-text="$t('material_cocida')"></option>
+                </select>
+                <select x-model="mediaSuelaGrosor" :aria-label="$t('grosor_label')">
+                  <option value="3.5">3.5 mm</option>
+                  <option value="4">4 mm</option>
+                  <option value="4.5">4.5 mm</option>
+                  <option value="5">5 mm</option>
+                </select>
+              </div>
+              <div class="service-item-footer">
+                <span x-text="precioMediaSuela.toFixed(2) + '€/ud'"></span>
+                <button type="button" class="btn btn-secondary" @click="anadirMediaSuela()" x-text="$t('btn_anadir')"></button>
+              </div>
             </div>
 
-            <p class="price-total" x-show="precioTotal > 0" x-text="$t('precio_total_label') + ': ' + precioTotal.toFixed(2) + '€'"></p>
+            <div class="service-item">
+              <div class="service-item-footer">
+                <span x-text="$t('service_puntera_title') + ' · ' + precioPuntera.toFixed(2) + '€/ud'"></span>
+                <div class="stepper-inline">
+                  <button type="button" @click="decrementarPuntera()" aria-label="−">−</button>
+                  <span x-text="cantidadPuntera"></span>
+                  <button type="button" @click="incrementarPuntera()" aria-label="+">+</button>
+                </div>
+              </div>
+            </div>
+
+            <template x-if="carrito.length > 0">
+              <div class="cart-summary">
+                <p class="cart-summary-title" x-text="$t('carrito_title')"></p>
+                <template x-for="linea in carrito" :key="linea.tipoCalzado + linea.servicio + linea.material + linea.grosor">
+                  <div class="cart-line">
+                    <span class="cart-line-info">
+                      <span x-text="$t('tipo_' + linea.tipoCalzado) + ' · ' + $t('service_' + linea.servicio + '_title')"></span>
+                      <span class="cart-line-variant" x-show="linea.material" x-text="linea.material ? ($t('material_' + linea.material) + ' · ' + linea.grosor + ' mm') : ''"></span>
+                    </span>
+                    <span class="cart-line-controls">
+                      <button type="button" @click="ajustarCantidad(linea, -1)" aria-label="−">−</button>
+                      <span x-text="linea.cantidad"></span>
+                      <button type="button" @click="ajustarCantidad(linea, 1)" aria-label="+">+</button>
+                      <strong x-text="linea.precioSubtotal.toFixed(2) + '€'"></strong>
+                      <button type="button" class="cart-line-remove" @click="quitarDelCarrito(linea)" aria-label="Quitar">✕</button>
+                    </span>
+                  </div>
+                </template>
+              </div>
+            </template>
+
+            <p class="price-total" x-show="carrito.length > 0" x-text="$t('precio_total_label') + ': ' + totalCarrito.toFixed(2) + '€'"></p>
 
             <div class="modal-nav">
               <span></span>
@@ -160,6 +222,8 @@
               </template>
             </div>
 
+            <p class="price-total" x-show="entregaTipo" x-text="incluyeTransporte ? ($t('precio_total_label') + ': ' + precioTotal.toFixed(2) + '€ (' + $t('envio_gls_label') + ': ' + transporteGLS.toFixed(2) + '€)') : ($t('precio_total_label') + ': ' + precioTotal.toFixed(2) + '€')"></p>
+
             <div class="modal-nav">
               <button type="button" class="btn btn-secondary" @click="step = 1" x-text="$t('btn_atras')"></button>
               <button type="button" class="btn btn-primary" :disabled="!canProceedStep2" @click="step = 3" x-text="$t('btn_siguiente')"></button>
@@ -219,17 +283,17 @@
         <article class="service-card">
           <h3 x-text="$t('service_resolado_completo_title')"></h3>
           <p x-text="$t('service_resolado_completo_desc')"></p>
-          <p class="price" x-text="$t('service_from') + ' ' + Math.min(precios.bota.resolado_completo, precios.pie_de_gato.resolado_completo) + '€'"></p>
+          <p class="price" x-text="$t('service_from') + ' ' + precioDesde('resolado_completo').toFixed(2) + '€'"></p>
         </article>
         <article class="service-card">
           <h3 x-text="$t('service_media_suela_title')"></h3>
           <p x-text="$t('service_media_suela_desc')"></p>
-          <p class="price" x-text="$t('service_from') + ' ' + Math.min(precios.bota.media_suela, precios.pie_de_gato.media_suela) + '€'"></p>
+          <p class="price" x-text="$t('service_from') + ' ' + precioDesde('media_suela').toFixed(2) + '€'"></p>
         </article>
         <article class="service-card">
           <h3 x-text="$t('service_puntera_title')"></h3>
           <p x-text="$t('service_puntera_desc')"></p>
-          <p class="price" x-text="$t('service_from') + ' ' + Math.min(precios.bota.puntera, precios.pie_de_gato.puntera) + '€'"></p>
+          <p class="price" x-text="$t('service_from') + ' ' + precioDesde('puntera').toFixed(2) + '€'"></p>
         </article>
       </div>
     </div>
