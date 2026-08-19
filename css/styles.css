@@ -372,6 +372,120 @@ footer.site-footer {
   margin: 1.5rem 0;
 }
 
+.service-item {
+  border: 1px solid var(--color-slate);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.service-item-header {
+  margin-bottom: 0.5rem;
+}
+
+.service-item-selects {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.service-item-selects select {
+  flex: 1;
+  padding: 0.4rem;
+  border: 1px solid var(--color-slate);
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+}
+
+.service-item-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.stepper-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stepper-inline button {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  border: 1px solid var(--color-slate);
+  background: var(--color-white);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.stepper-inline button:hover,
+.stepper-inline button:focus-visible {
+  border-color: var(--color-amber);
+  outline: none;
+}
+
+.cart-summary {
+  border-top: 1px solid var(--color-border-light);
+  padding-top: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.cart-summary-title {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  color: var(--color-slate);
+  margin-bottom: 0.5rem;
+}
+
+.cart-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.cart-line-info {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.9rem;
+}
+
+.cart-line-variant {
+  font-size: 0.8rem;
+  color: var(--color-slate);
+}
+
+.cart-line-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.cart-line-controls button:not(.cart-line-remove) {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  border: 1px solid var(--color-slate);
+  background: var(--color-white);
+  cursor: pointer;
+}
+
+.cart-line-remove {
+  background: none;
+  border: none;
+  color: #b3261e;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0 0.25rem;
+}
+
 .form-field {
   margin-bottom: 1rem;
 }
