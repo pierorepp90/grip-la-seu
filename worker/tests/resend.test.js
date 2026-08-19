@@ -4,10 +4,19 @@ import { buildOwnerEmail, buildCustomerEmail, sendEmail } from '../src/resend.js
 
 const orderPayload = {
   orderId: 'GLS-1',
-  tipoCalzado: 'pie_de_gato',
-  servicio: 'resolado_completo',
-  cantidad: 2,
-  precioTotal: 70,
+  carrito: [
+    {
+      tipoCalzado: 'pie_de_gato',
+      servicio: 'resolado_completo',
+      material: 'vibram_xs_grip2',
+      grosor: '4',
+      cantidad: 2,
+      precioUnitario: 35,
+      precioSubtotal: 70,
+    },
+  ],
+  transporte: 6,
+  precioTotal: 76,
   nombre: 'Ana Pérez',
   direccion: 'Carrer Major 1',
   telefono: '+34612345678',
@@ -16,12 +25,14 @@ const orderPayload = {
   metodoPago: 'bizum',
 };
 
-test('buildOwnerEmail va dirigido al propietario e incluye todos los datos', () => {
+test('buildOwnerEmail va dirigido al propietario e incluye el carrito y el envío', () => {
   const email = buildOwnerEmail(orderPayload, 'owner@example.com');
   assert.deepEqual(email.to, ['owner@example.com']);
   assert.match(email.subject, /GLS-1/);
   assert.match(email.html, /Ana Pérez/);
-  assert.match(email.html, /70\.00€/);
+  assert.match(email.html, /pie_de_gato · resolado_completo \(vibram_xs_grip2, 4mm\) ×2 — 70\.00€/);
+  assert.match(email.html, /Envío GLS: 6\.00€/);
+  assert.match(email.html, /76\.00€/);
   assert.match(email.html, /Punt GLS Centre/);
 });
 
@@ -29,7 +40,13 @@ test('buildCustomerEmail va dirigido al comprador y confirma la recepción', () 
   const email = buildCustomerEmail(orderPayload, 'ana@example.com');
   assert.deepEqual(email.to, ['ana@example.com']);
   assert.match(email.subject, /GLS-1/);
+  assert.match(email.html, /pie_de_gato · resolado_completo/);
   assert.match(email.html, /Punt GLS Centre/);
+});
+
+test('buildOwnerEmail omite la línea de envío cuando el transporte es 0', () => {
+  const email = buildOwnerEmail({ ...orderPayload, transporte: 0 }, 'owner@example.com');
+  assert.doesNotMatch(email.html, /Envío GLS/);
 });
 
 test('sendEmail hace POST autenticado a Resend', async () => {
@@ -56,10 +73,21 @@ test('buildOwnerEmail escapa caracteres HTML en campos de usuario', () => {
     email: 'test<script>@example.com',
   };
   const email = buildOwnerEmail(maliciousPayload, 'owner@example.com');
-  // Verify that HTML special characters are escaped, preventing XSS
   assert(!email.html.includes('<script>'));
   assert(email.html.includes('&lt;script&gt;'));
   assert(!email.html.includes('<img'));
   assert(email.html.includes('&lt;img'));
   assert(email.html.includes('&quot;&gt;&lt;img'));
+});
+
+test('buildOwnerEmail escapa la descripción reconstruida desde Stripe', () => {
+  const payload = {
+    ...orderPayload,
+    carrito: [
+      { descripcion: '<script>alert(1)</script>', cantidad: 1, precioUnitario: 10, precioSubtotal: 10 },
+    ],
+  };
+  const email = buildOwnerEmail(payload, 'owner@example.com');
+  assert(!email.html.includes('<script>'));
+  assert(email.html.includes('&lt;script&gt;'));
 });

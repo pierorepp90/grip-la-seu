@@ -16,20 +16,25 @@ function entregaTexto(entrega) {
     : `Tienda asociada: ${entrega.nombre}`;
 }
 
+function formatearLineaCarrito(linea) {
+  const subtotal = linea.precioSubtotal.toFixed(2);
+  if (linea.descripcion) {
+    return `${escapeHtml(linea.descripcion)} ×${linea.cantidad} — ${subtotal}€`;
+  }
+  const variante = linea.material ? ` (${linea.material}, ${linea.grosor}mm)` : '';
+  return `${linea.tipoCalzado} · ${linea.servicio}${variante} ×${linea.cantidad} — ${subtotal}€`;
+}
+
+function lineasCarritoHtml(orderPayload) {
+  const lineas = orderPayload.carrito.map((linea) => `<li>${formatearLineaCarrito(linea)}</li>`);
+  if (orderPayload.transporte > 0) {
+    lineas.push(`<li>Envío GLS: ${orderPayload.transporte.toFixed(2)}€</li>`);
+  }
+  return lineas.join('\n');
+}
+
 export function buildOwnerEmail(orderPayload, ownerEmail) {
-  const {
-    orderId,
-    tipoCalzado,
-    servicio,
-    cantidad,
-    precioTotal,
-    nombre,
-    direccion,
-    telefono,
-    email,
-    entrega,
-    metodoPago,
-  } = orderPayload;
+  const { orderId, precioTotal, nombre, direccion, telefono, email, entrega, metodoPago } = orderPayload;
 
   return {
     from: FROM_ADDRESS,
@@ -38,9 +43,7 @@ export function buildOwnerEmail(orderPayload, ownerEmail) {
     html: `
       <h2>Nuevo pedido ${orderId}</h2>
       <ul>
-        <li>Tipo de calzado: ${tipoCalzado}</li>
-        <li>Servicio: ${servicio}</li>
-        <li>Cantidad: ${cantidad}</li>
+        ${lineasCarritoHtml(orderPayload)}
         <li>Precio total: ${precioTotal.toFixed(2)}€</li>
         <li>Nombre: ${escapeHtml(nombre)}</li>
         <li>Dirección: ${escapeHtml(direccion)}</li>
@@ -54,7 +57,7 @@ export function buildOwnerEmail(orderPayload, ownerEmail) {
 }
 
 export function buildCustomerEmail(orderPayload, customerEmailAddress) {
-  const { orderId, servicio, cantidad, precioTotal, entrega, metodoPago } = orderPayload;
+  const { orderId, precioTotal, entrega, metodoPago } = orderPayload;
 
   return {
     from: FROM_ADDRESS,
@@ -64,8 +67,7 @@ export function buildCustomerEmail(orderPayload, customerEmailAddress) {
       <h2>¡Gracias por tu pedido!</h2>
       <p>Referencia: <strong>${orderId}</strong></p>
       <ul>
-        <li>Servicio: ${servicio}</li>
-        <li>Cantidad: ${cantidad}</li>
+        ${lineasCarritoHtml(orderPayload)}
         <li>Precio total: ${precioTotal.toFixed(2)}€</li>
         <li>Entrega: ${entregaTexto(entrega)}</li>
         <li>Pago: ${metodoPago}</li>
