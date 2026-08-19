@@ -1,3 +1,5 @@
+const ENVIO_GLS_NOMBRE = 'Envío GLS';
+
 export function buildCheckoutSessionParams(orderPayload, siteUrl) {
   const { orderId, carrito, transporte, nombre, direccion, telefono, email, entrega, precioTotal } =
     orderPayload;
@@ -27,7 +29,7 @@ export function buildCheckoutSessionParams(orderPayload, siteUrl) {
     params.set(`line_items[${index}][quantity]`, '1');
     params.set(`line_items[${index}][price_data][currency]`, 'eur');
     params.set(`line_items[${index}][price_data][unit_amount]`, String(Math.round(transporte * 100)));
-    params.set(`line_items[${index}][price_data][product_data][name]`, 'Envío GLS');
+    params.set(`line_items[${index}][price_data][product_data][name]`, ENVIO_GLS_NOMBRE);
   }
 
   params.set('metadata[order_id]', orderId);
@@ -44,7 +46,7 @@ export function buildCheckoutSessionParams(orderPayload, siteUrl) {
 export function buildCarritoFromLineItems(session) {
   const items = (session.line_items && session.line_items.data) || [];
   return items
-    .filter((item) => item.description !== 'Envío GLS')
+    .filter((item) => item.description !== ENVIO_GLS_NOMBRE)
     .map((item) => ({
       descripcion: item.description,
       cantidad: item.quantity,
@@ -90,7 +92,7 @@ export async function createStripeSession(params, secretKey, fetchFn = fetch) {
 
 export async function retrieveStripeSession(sessionId, secretKey, fetchFn = fetch) {
   const response = await fetchFn(
-    `https://api.stripe.com/v1/checkout/sessions/${sessionId}?expand[]=line_items`,
+    `https://api.stripe.com/v1/checkout/sessions/${sessionId}?expand[]=line_items&line_items[limit]=100`,
     {
       method: 'GET',
       headers: { Authorization: `Bearer ${secretKey}` },

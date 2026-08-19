@@ -138,7 +138,10 @@ test('createStripeSession lanza error si Stripe responde con error', async () =>
 
 test('retrieveStripeSession pide la sesión con los line_items expandidos', async () => {
   const fakeFetch = async (url, options) => {
-    assert.equal(url, 'https://api.stripe.com/v1/checkout/sessions/sess_123?expand[]=line_items');
+    assert.equal(
+      url,
+      'https://api.stripe.com/v1/checkout/sessions/sess_123?expand[]=line_items&line_items[limit]=100',
+    );
     assert.equal(options.headers.Authorization, 'Bearer sk_test_123');
     return { ok: true, json: async () => ({ id: 'sess_123', payment_status: 'paid' }) };
   };
