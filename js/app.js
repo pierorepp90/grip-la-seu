@@ -1,9 +1,9 @@
 // js/app.js
 import { LANGS, t } from './i18n.js';
-import { PRECIOS } from './precios.js';
+import { PRECIOS, PRECIO_TRANSPORTE_GLS } from './precios.js';
 import { PUNTOS_GLS } from './puntos-gls.js';
 import { TIENDAS } from './tiendas.js';
-import { calculatePrice } from './pricing.js';
+import { calculateLinePrice, minPrecioServicio } from './pricing.js';
 import { findNearestPoints } from './geo.js';
 import { isNonEmpty, isValidSpanishPhone, isValidEmail } from './validation.js';
 import { generateOrderId, buildOrderSummary } from './order.js';
@@ -28,6 +28,9 @@ document.addEventListener('alpine:init', () => {
       localStorage.setItem('lang', lang);
       this.menuOpen = false;
     },
+    precioDesde(servicio) {
+      return minPrecioServicio(PRECIOS, servicio);
+    },
   }));
 
   Alpine.data('orderForm', () => ({
@@ -38,10 +41,14 @@ document.addEventListener('alpine:init', () => {
     orderId: '',
     summaryLines: [],
 
-    // Paso 1
-    tipoCalzado: '',
-    cantidad: 1,
-    servicio: '',
+    // Paso 1 — carrito
+    tipoCalzado: 'pie_de_gato',
+    carrito: [],
+    resoladoMaterial: 'vibram_xs_grip2',
+    resoladoGrosor: '3.5',
+    mediaSuelaMaterial: 'vibram_xs_grip2',
+    mediaSuelaGrosor: '3.5',
+    transporteGLS: PRECIO_TRANSPORTE_GLS,
 
     // Paso 2
     nombre: '',
@@ -57,17 +64,63 @@ document.addEventListener('alpine:init', () => {
     // Paso 3
     metodoPago: '',
 
-    get precioTotal() {
-      if (!this.tipoCalzado || !this.servicio) return 0;
+    get precioResolado() {
       try {
-        return calculatePrice(PRECIOS, this.tipoCalzado, this.servicio, this.cantidad);
+        return calculateLinePrice(
+          PRECIOS,
+          this.tipoCalzado,
+          'resolado_completo',
+          this.resoladoMaterial,
+          this.resoladoGrosor,
+          1,
+        );
       } catch {
         return 0;
       }
     },
 
+    get precioMediaSuela() {
+      try {
+        return calculateLinePrice(
+          PRECIOS,
+          this.tipoCalzado,
+          'media_suela',
+          this.mediaSuelaMaterial,
+          this.mediaSuelaGrosor,
+          1,
+        );
+      } catch {
+        return 0;
+      }
+    },
+
+    get precioPuntera() {
+      try {
+        return calculateLinePrice(PRECIOS, this.tipoCalzado, 'puntera', null, null, 1);
+      } catch {
+        return 0;
+      }
+    },
+
+    get cantidadPuntera() {
+      const linea = this.buscarLineaCarrito(this.tipoCalzado, 'puntera', null, null);
+      return linea ? linea.cantidad : 0;
+    },
+
+    get totalCarrito() {
+      return this.carrito.reduce((suma, linea) => suma + linea.precioSubtotal, 0);
+    },
+
+    get incluyeTransporte() {
+      return this.entregaTipo === 'gls';
+    },
+
+    get precioTotal() {
+      return this.totalCarrito + (this.incluyeTransporte ? this.transporteGLS : 0);
+    },
+
     get canProceedStep1() {
-      return Boolean(this.tipoCalzado && this.servicio && this.cantidad >= 1);
+      return this.carrito.length > 0 && this.carrito.every((linea) => linea.cantidad >= 1);
     },
 
     get canProceedStep2() {
@@ -79,6 +132,77 @@ document.addEventListener('alpine:init', () => {
           this.entregaTipo &&
           this.entregaNombre,
       );
+    },
+
+    buscarLineaCarrito(tipoCalzado, servicio, material, grosor) {
+      return this.carrito.find(
+        (linea) =>
+          linea.tipoCalzado === tipoCalzado &&
+          linea.servicio === servicio &&
+          linea.material === material &&
+          linea.grosor === grosor,
+      );
+    },
+
+    agregarAlCarrito(tipoCalzado, servicio, material, grosor, precioUnitario, cantidad = 1) {
+      const existente = this.buscarLineaCarrito(tipoCalzado, servicio, material, grosor);
+      if (existente) {
+        existente.cantidad += cantidad;
+        existente.precioSubtotal = existente.precioUnitario * existente.cantidad;
+        return;
+      }
+      this.carrito.push({
+        tipoCalzado,
+        servicio,
+        material,
+        grosor,
+        cantidad,
+        precioUnitario,
+        precioSubtotal: precioUnitario * cantidad,
+      });
+    },
+
+    quitarDelCarrito(linea) {
+      this.carrito = this.carrito.filter((l) => l !== linea);
+    },
+
+    ajustarCantidad(linea, delta) {
+      const nuevaCantidad = linea.cantidad + delta;
+      if (nuevaCantidad <= 0) {
+        this.quitarDelCarrito(linea);
+        return;
+      }
+      linea.cantidad = nuevaCantidad;
+      linea.precioSubtotal = linea.precioUnitario * nuevaCantidad;
+    },
+
+    anadirResolado() {
+      this.agregarAlCarrito(
+        this.tipoCalzado,
+        'resolado_completo',
+        this.resoladoMaterial,
+        this.resoladoGrosor,
+        this.precioResolado,
+      );
+    },
+
+    anadirMediaSuela() {
+      this.agregarAlCarrito(
+        this.tipoCalzado,
+        'media_suela',
+        this.mediaSuelaMaterial,
+        this.mediaSuelaGrosor,
+        this.precioMediaSuela,
+      );
+    },
+
+    incrementarPuntera() {
+      this.agregarAlCarrito(this.tipoCalzado, 'puntera', null, null, this.precioPuntera);
+    },
+
+    decrementarPuntera() {
+      const linea = this.buscarLineaCarrito(this.tipoCalzado, 'puntera', null, null);
+      if (linea) this.ajustarCantidad(linea, -1);
     },
 
     async buscarPuntosGLS() {
@@ -104,9 +228,8 @@ document.addEventListener('alpine:init', () => {
       }
       return {
         orderId: this.orderId,
-        tipoCalzado: this.tipoCalzado,
-        servicio: this.servicio,
-        cantidad: this.cantidad,
+        carrito: this.carrito.map((linea) => ({ ...linea })),
+        transporte: this.incluyeTransporte ? this.transporteGLS : 0,
         precioTotal: this.precioTotal,
         nombre: this.nombre,
         direccion: this.direccion,
