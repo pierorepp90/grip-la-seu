@@ -91,3 +91,26 @@ test('buildOwnerEmail escapa la descripción reconstruida desde Stripe', () => {
   assert(!email.html.includes('<script>'));
   assert(email.html.includes('&lt;script&gt;'));
 });
+
+test('buildOwnerEmail escapa los campos estructurados del carrito (servicio/tipoCalzado/material/grosor)', () => {
+  const payload = {
+    ...orderPayload,
+    carrito: [
+      {
+        tipoCalzado: '<script>alert(1)</script>',
+        servicio: '<img src=x onerror=alert(1)>',
+        material: '<b>x</b>',
+        grosor: '<i>y</i>',
+        cantidad: 1,
+        precioUnitario: 10,
+        precioSubtotal: 10,
+      },
+    ],
+  };
+  const email = buildOwnerEmail(payload, 'owner@example.com');
+  assert(!email.html.includes('<script>'));
+  assert(!email.html.includes('<img'));
+  assert(!email.html.includes('<b>x</b>'));
+  assert(!email.html.includes('<i>y</i>'));
+  assert(email.html.includes('&lt;script&gt;'));
+});

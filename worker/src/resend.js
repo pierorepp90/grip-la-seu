@@ -21,8 +21,8 @@ function formatearLineaCarrito(linea) {
   if (linea.descripcion) {
     return `${escapeHtml(linea.descripcion)} ×${linea.cantidad} — ${subtotal}€`;
   }
-  const variante = linea.material ? ` (${linea.material}, ${linea.grosor}mm)` : '';
-  return `${linea.tipoCalzado} · ${linea.servicio}${variante} ×${linea.cantidad} — ${subtotal}€`;
+  const variante = linea.material ? ` (${escapeHtml(linea.material)}, ${escapeHtml(linea.grosor)}mm)` : '';
+  return `${escapeHtml(linea.tipoCalzado)} · ${escapeHtml(linea.servicio)}${variante} ×${linea.cantidad} — ${subtotal}€`;
 }
 
 function lineasCarritoHtml(orderPayload) {
