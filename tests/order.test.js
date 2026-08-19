@@ -15,13 +15,31 @@ test('generateOrderId produce ids distintos con random distinto', () => {
   assert.notEqual(id1, id2);
 });
 
-test('buildOrderSummary incluye todos los datos del pedido en las líneas', () => {
+test('buildOrderSummary detalla cada línea del carrito con material y grosor, y el envío', () => {
   const orderPayload = {
     orderId: 'GLS-TEST-0001',
-    tipoCalzado: 'pie_de_gato',
-    servicio: 'resolado_completo',
-    cantidad: 2,
-    precioTotal: 70,
+    carrito: [
+      {
+        tipoCalzado: 'pie_de_gato',
+        servicio: 'resolado_completo',
+        material: 'vibram_xs_grip2',
+        grosor: '4',
+        cantidad: 2,
+        precioUnitario: 35,
+        precioSubtotal: 70,
+      },
+      {
+        tipoCalzado: 'bota',
+        servicio: 'puntera',
+        material: null,
+        grosor: null,
+        cantidad: 1,
+        precioUnitario: 15,
+        precioSubtotal: 15,
+      },
+    ],
+    transporte: 6,
+    precioTotal: 91,
     nombre: 'Ana Pérez',
     direccion: 'Carrer Major 1',
     telefono: '+34612345678',
@@ -32,10 +50,65 @@ test('buildOrderSummary incluye todos los datos del pedido en las líneas', () =
   const summary = buildOrderSummary(orderPayload);
   assert.equal(summary.orderId, 'GLS-TEST-0001');
   const joined = summary.lineas.join(' | ');
-  assert.match(joined, /pie_de_gato/);
-  assert.match(joined, /resolado_completo/);
-  assert.match(joined, /70\.00€/);
+  assert.match(joined, /pie_de_gato · resolado_completo \(vibram_xs_grip2, 4mm\) ×2 — 70\.00€/);
+  assert.match(joined, /bota · puntera ×1 — 15\.00€/);
+  assert.match(joined, /Envío GLS: 6\.00€/);
+  assert.match(joined, /Total: 91\.00€/);
   assert.match(joined, /Ana Pérez/);
   assert.match(joined, /Punt GLS Centre/);
   assert.match(joined, /bizum/);
+});
+
+test('buildOrderSummary omite la línea de envío cuando el transporte es 0', () => {
+  const orderPayload = {
+    orderId: 'GLS-TEST-0002',
+    carrito: [
+      {
+        tipoCalzado: 'bota',
+        servicio: 'puntera',
+        material: null,
+        grosor: null,
+        cantidad: 1,
+        precioUnitario: 15,
+        precioSubtotal: 15,
+      },
+    ],
+    transporte: 0,
+    precioTotal: 15,
+    nombre: 'Ana Pérez',
+    direccion: 'Carrer Major 1',
+    telefono: '+34612345678',
+    email: 'ana@example.com',
+    entrega: { tipo: 'tienda', nombre: 'Tenda Centre' },
+    metodoPago: 'efectivo',
+  };
+  const summary = buildOrderSummary(orderPayload);
+  const joined = summary.lineas.join(' | ');
+  assert.doesNotMatch(joined, /Envío GLS/);
+  assert.match(joined, /Total: 15\.00€/);
+});
+
+test('buildOrderSummary usa la descripción reconstruida desde Stripe cuando no hay campos estructurados', () => {
+  const orderPayload = {
+    orderId: 'GLS-TEST-0003',
+    carrito: [
+      {
+        descripcion: 'resolado_completo (pie_de_gato) (vibram_xs_grip2, 4mm)',
+        cantidad: 2,
+        precioUnitario: 35,
+        precioSubtotal: 70,
+      },
+    ],
+    transporte: 0,
+    precioTotal: 70,
+    nombre: 'Ana Pérez',
+    direccion: 'Carrer Major 1',
+    telefono: '+34612345678',
+    email: 'ana@example.com',
+    entrega: { tipo: 'tienda', nombre: 'Tenda Centre' },
+    metodoPago: 'tarjeta',
+  };
+  const summary = buildOrderSummary(orderPayload);
+  const joined = summary.lineas.join(' | ');
+  assert.match(joined, /resolado_completo \(pie_de_gato\) \(vibram_xs_grip2, 4mm\) ×2 — 70\.00€/);
 });

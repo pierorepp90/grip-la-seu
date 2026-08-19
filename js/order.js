@@ -7,12 +7,20 @@ export function generateOrderId(now = new Date(), randomFn = Math.random) {
   return `GLS-${datePart}-${randomPart}`;
 }
 
+function formatearLineaCarrito(linea) {
+  const subtotal = linea.precioSubtotal.toFixed(2);
+  if (linea.descripcion) {
+    return `${linea.descripcion} ×${linea.cantidad} — ${subtotal}€`;
+  }
+  const variante = linea.material ? ` (${linea.material}, ${linea.grosor}mm)` : '';
+  return `${linea.tipoCalzado} · ${linea.servicio}${variante} ×${linea.cantidad} — ${subtotal}€`;
+}
+
 export function buildOrderSummary(orderPayload) {
   const {
     orderId,
-    tipoCalzado,
-    servicio,
-    cantidad,
+    carrito,
+    transporte,
     precioTotal,
     nombre,
     direccion,
@@ -27,20 +35,19 @@ export function buildOrderSummary(orderPayload) {
       ? `Punto GLS: ${entrega.nombre}`
       : `Tienda asociada: ${entrega.nombre}`;
 
-  return {
-    orderId,
-    lineas: [
-      `Referencia: ${orderId}`,
-      `Tipo de calzado: ${tipoCalzado}`,
-      `Servicio: ${servicio}`,
-      `Cantidad: ${cantidad}`,
-      `Precio total: ${precioTotal.toFixed(2)}€`,
-      `Nombre: ${nombre}`,
-      `Dirección: ${direccion}`,
-      `Teléfono: ${telefono}`,
-      `Email: ${email}`,
-      `Entrega: ${entregaTexto}`,
-      `Pago: ${metodoPago}`,
-    ],
-  };
+  const lineas = [`Referencia: ${orderId}`, ...carrito.map(formatearLineaCarrito)];
+  if (transporte > 0) {
+    lineas.push(`Envío GLS: ${transporte.toFixed(2)}€`);
+  }
+  lineas.push(
+    `Total: ${precioTotal.toFixed(2)}€`,
+    `Nombre: ${nombre}`,
+    `Dirección: ${direccion}`,
+    `Teléfono: ${telefono}`,
+    `Email: ${email}`,
+    `Entrega: ${entregaTexto}`,
+    `Pago: ${metodoPago}`,
+  );
+
+  return { orderId, lineas };
 }
