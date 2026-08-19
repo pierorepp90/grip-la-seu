@@ -12,8 +12,8 @@ function escapeHtml(value) {
 
 function entregaTexto(entrega) {
   return entrega.tipo === 'gls'
-    ? `Punto GLS: ${entrega.nombre}`
-    : `Tienda asociada: ${entrega.nombre}`;
+    ? `Punto GLS: ${escapeHtml(entrega.nombre)}`
+    : `Tienda asociada: ${escapeHtml(entrega.nombre)}`;
 }
 
 function formatearLineaCarrito(linea) {
@@ -41,16 +41,16 @@ export function buildOwnerEmail(orderPayload, ownerEmail) {
     to: [ownerEmail],
     subject: `Nuevo pedido ${orderId}`,
     html: `
-      <h2>Nuevo pedido ${orderId}</h2>
+      <h2>Nuevo pedido ${escapeHtml(orderId)}</h2>
       <ul>
         ${lineasCarritoHtml(orderPayload)}
         <li>Precio total: ${precioTotal.toFixed(2)}€</li>
         <li>Nombre: ${escapeHtml(nombre)}</li>
         <li>Dirección: ${escapeHtml(direccion)}</li>
-        <li>Teléfono: ${telefono}</li>
+        <li>Teléfono: ${escapeHtml(telefono)}</li>
         <li>Email: ${escapeHtml(email)}</li>
         <li>Entrega: ${entregaTexto(entrega)}</li>
-        <li>Pago: ${metodoPago}</li>
+        <li>Pago: ${escapeHtml(metodoPago)}</li>
       </ul>
     `,
   };
@@ -65,12 +65,12 @@ export function buildCustomerEmail(orderPayload, customerEmailAddress) {
     subject: `Hemos recibido tu pedido ${orderId} — Grip La Seu`,
     html: `
       <h2>¡Gracias por tu pedido!</h2>
-      <p>Referencia: <strong>${orderId}</strong></p>
+      <p>Referencia: <strong>${escapeHtml(orderId)}</strong></p>
       <ul>
         ${lineasCarritoHtml(orderPayload)}
         <li>Precio total: ${precioTotal.toFixed(2)}€</li>
         <li>Entrega: ${entregaTexto(entrega)}</li>
-        <li>Pago: ${metodoPago}</li>
+        <li>Pago: ${escapeHtml(metodoPago)}</li>
       </ul>
       <p>Nos pondremos en contacto contigo si necesitamos algo más.</p>
     `,

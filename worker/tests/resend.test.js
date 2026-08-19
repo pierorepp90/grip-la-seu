@@ -114,3 +114,25 @@ test('buildOwnerEmail escapa los campos estructurados del carrito (servicio/tipo
   assert(!email.html.includes('<i>y</i>'));
   assert(email.html.includes('&lt;script&gt;'));
 });
+
+test('buildOwnerEmail y buildCustomerEmail escapan orderId, teléfono, entrega.nombre y metodoPago', () => {
+  const payload = {
+    ...orderPayload,
+    orderId: '<script>alert(1)</script>',
+    telefono: '<img src=x onerror=alert(1)>',
+    entrega: { tipo: 'tienda', nombre: '<b>tienda maliciosa</b>' },
+    metodoPago: '<i>bizum</i>',
+  };
+  const ownerEmail = buildOwnerEmail(payload, 'owner@example.com');
+  assert(!ownerEmail.html.includes('<script>'));
+  assert(!ownerEmail.html.includes('<img'));
+  assert(!ownerEmail.html.includes('<b>tienda maliciosa</b>'));
+  assert(!ownerEmail.html.includes('<i>bizum</i>'));
+  assert(ownerEmail.html.includes('&lt;script&gt;'));
+
+  const customerEmail = buildCustomerEmail(payload, 'ana@example.com');
+  assert(!customerEmail.html.includes('<script>'));
+  assert(!customerEmail.html.includes('<b>tienda maliciosa</b>'));
+  assert(!customerEmail.html.includes('<i>bizum</i>'));
+  assert(customerEmail.html.includes('&lt;script&gt;'));
+});
