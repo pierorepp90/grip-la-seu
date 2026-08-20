@@ -11,7 +11,7 @@ export function buildCheckoutSessionParams(orderPayload, siteUrl) {
   params.set('cancel_url', `${siteUrl}/?pago=cancelado`);
 
   carrito.forEach((linea, index) => {
-    const variante = linea.material ? ` (${linea.material}, ${linea.grosor}mm)` : '';
+    const variante = linea.material ? ` (${linea.material})` : '';
     params.set(`line_items[${index}][quantity]`, String(linea.cantidad));
     params.set(`line_items[${index}][price_data][currency]`, 'eur');
     params.set(

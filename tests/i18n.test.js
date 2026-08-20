@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { LANGS, DICT, t } from '../js/i18n.js';
 
-test('las 3 lenguas tienen exactamente las mismas claves', () => {
+test('todas las lenguas tienen exactamente las mismas claves', () => {
   const [first, ...rest] = LANGS.map((lang) => Object.keys(DICT[lang]).sort());
   for (const keys of rest) {
     assert.deepEqual(keys, first);

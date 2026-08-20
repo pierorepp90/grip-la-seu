@@ -45,9 +45,7 @@ document.addEventListener('alpine:init', () => {
     tipoCalzado: 'pie_de_gato',
     carrito: [],
     resoladoMaterial: 'vibram_xs_grip2',
-    resoladoGrosor: '3.5',
     mediaSuelaMaterial: 'vibram_xs_grip2',
-    mediaSuelaGrosor: '3.5',
     transporteGLS: PRECIO_TRANSPORTE_GLS,
 
     // Paso 2
@@ -66,14 +64,7 @@ document.addEventListener('alpine:init', () => {
 
     get precioResolado() {
       try {
-        return calculateLinePrice(
-          PRECIOS,
-          this.tipoCalzado,
-          'resolado_completo',
-          this.resoladoMaterial,
-          this.resoladoGrosor,
-          1,
-        );
+        return calculateLinePrice(PRECIOS, this.tipoCalzado, 'resolado_completo', 1);
       } catch {
         return 0;
       }
@@ -81,14 +72,7 @@ document.addEventListener('alpine:init', () => {
 
     get precioMediaSuela() {
       try {
-        return calculateLinePrice(
-          PRECIOS,
-          this.tipoCalzado,
-          'media_suela',
-          this.mediaSuelaMaterial,
-          this.mediaSuelaGrosor,
-          1,
-        );
+        return calculateLinePrice(PRECIOS, this.tipoCalzado, 'media_suela', 1);
       } catch {
         return 0;
       }
@@ -96,14 +80,14 @@ document.addEventListener('alpine:init', () => {
 
     get precioPuntera() {
       try {
-        return calculateLinePrice(PRECIOS, this.tipoCalzado, 'puntera', null, null, 1);
+        return calculateLinePrice(PRECIOS, this.tipoCalzado, 'puntera', 1);
       } catch {
         return 0;
       }
     },
 
     get cantidadPuntera() {
-      const linea = this.buscarLineaCarrito(this.tipoCalzado, 'puntera', null, null);
+      const linea = this.buscarLineaCarrito(this.tipoCalzado, 'puntera', null);
       return linea ? linea.cantidad : 0;
     },
 
@@ -134,18 +118,17 @@ document.addEventListener('alpine:init', () => {
       );
     },
 
-    buscarLineaCarrito(tipoCalzado, servicio, material, grosor) {
+    buscarLineaCarrito(tipoCalzado, servicio, material) {
       return this.carrito.find(
         (linea) =>
           linea.tipoCalzado === tipoCalzado &&
           linea.servicio === servicio &&
-          linea.material === material &&
-          linea.grosor === grosor,
+          linea.material === material,
       );
     },
 
-    agregarAlCarrito(tipoCalzado, servicio, material, grosor, precioUnitario, cantidad = 1) {
-      const existente = this.buscarLineaCarrito(tipoCalzado, servicio, material, grosor);
+    agregarAlCarrito(tipoCalzado, servicio, material, precioUnitario, cantidad = 1) {
+      const existente = this.buscarLineaCarrito(tipoCalzado, servicio, material);
       if (existente) {
         existente.cantidad += cantidad;
         existente.precioSubtotal = existente.precioUnitario * existente.cantidad;
@@ -155,7 +138,6 @@ document.addEventListener('alpine:init', () => {
         tipoCalzado,
         servicio,
         material,
-        grosor,
         cantidad,
         precioUnitario,
         precioSubtotal: precioUnitario * cantidad,
@@ -177,31 +159,19 @@ document.addEventListener('alpine:init', () => {
     },
 
     anadirResolado() {
-      this.agregarAlCarrito(
-        this.tipoCalzado,
-        'resolado_completo',
-        this.resoladoMaterial,
-        this.resoladoGrosor,
-        this.precioResolado,
-      );
+      this.agregarAlCarrito(this.tipoCalzado, 'resolado_completo', this.resoladoMaterial, this.precioResolado);
     },
 
     anadirMediaSuela() {
-      this.agregarAlCarrito(
-        this.tipoCalzado,
-        'media_suela',
-        this.mediaSuelaMaterial,
-        this.mediaSuelaGrosor,
-        this.precioMediaSuela,
-      );
+      this.agregarAlCarrito(this.tipoCalzado, 'media_suela', this.mediaSuelaMaterial, this.precioMediaSuela);
     },
 
     incrementarPuntera() {
-      this.agregarAlCarrito(this.tipoCalzado, 'puntera', null, null, this.precioPuntera);
+      this.agregarAlCarrito(this.tipoCalzado, 'puntera', null, this.precioPuntera);
     },
 
     decrementarPuntera() {
-      const linea = this.buscarLineaCarrito(this.tipoCalzado, 'puntera', null, null);
+      const linea = this.buscarLineaCarrito(this.tipoCalzado, 'puntera', null);
       if (linea) this.ajustarCantidad(linea, -1);
     },
 

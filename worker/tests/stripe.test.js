@@ -16,7 +16,6 @@ const orderPayload = {
       tipoCalzado: 'pie_de_gato',
       servicio: 'resolado_completo',
       material: 'vibram_xs_grip2',
-      grosor: '4',
       cantidad: 2,
       precioUnitario: 35,
       precioSubtotal: 70,
@@ -59,7 +58,7 @@ test('buildCarritoFromLineItems reconstruye el carrito desde los line_items de S
     line_items: {
       data: [
         {
-          description: 'resolado_completo (pie_de_gato) (vibram_xs_grip2, 4mm)',
+          description: 'resolado_completo (pie_de_gato) (vibram_xs_grip2)',
           quantity: 2,
           amount_total: 7000,
           price: { unit_amount: 3500 },
@@ -75,7 +74,7 @@ test('buildCarritoFromLineItems reconstruye el carrito desde los line_items de S
   };
   const carrito = buildCarritoFromLineItems(session);
   assert.equal(carrito.length, 1);
-  assert.equal(carrito[0].descripcion, 'resolado_completo (pie_de_gato) (vibram_xs_grip2, 4mm)');
+  assert.equal(carrito[0].descripcion, 'resolado_completo (pie_de_gato) (vibram_xs_grip2)');
   assert.equal(carrito[0].cantidad, 2);
   assert.equal(carrito[0].precioUnitario, 35);
   assert.equal(carrito[0].precioSubtotal, 70);
@@ -87,7 +86,7 @@ test('orderPayloadFromSession reconstruye el pedido desde metadata y line_items'
     line_items: {
       data: [
         {
-          description: 'resolado_completo (pie_de_gato) (vibram_xs_grip2, 4mm)',
+          description: 'resolado_completo (pie_de_gato) (vibram_xs_grip2)',
           quantity: 2,
           amount_total: 7000,
           price: { unit_amount: 3500 },

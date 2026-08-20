@@ -15,7 +15,7 @@ test('generateOrderId produce ids distintos con random distinto', () => {
   assert.notEqual(id1, id2);
 });
 
-test('buildOrderSummary detalla cada línea del carrito con material y grosor, y el envío', () => {
+test('buildOrderSummary detalla cada línea del carrito con material, y el envío', () => {
   const orderPayload = {
     orderId: 'GLS-TEST-0001',
     carrito: [
@@ -23,7 +23,6 @@ test('buildOrderSummary detalla cada línea del carrito con material y grosor, y
         tipoCalzado: 'pie_de_gato',
         servicio: 'resolado_completo',
         material: 'vibram_xs_grip2',
-        grosor: '4',
         cantidad: 2,
         precioUnitario: 35,
         precioSubtotal: 70,
@@ -32,7 +31,6 @@ test('buildOrderSummary detalla cada línea del carrito con material y grosor, y
         tipoCalzado: 'bota',
         servicio: 'puntera',
         material: null,
-        grosor: null,
         cantidad: 1,
         precioUnitario: 15,
         precioSubtotal: 15,
@@ -50,7 +48,7 @@ test('buildOrderSummary detalla cada línea del carrito con material y grosor, y
   const summary = buildOrderSummary(orderPayload);
   assert.equal(summary.orderId, 'GLS-TEST-0001');
   const joined = summary.lineas.join(' | ');
-  assert.match(joined, /pie_de_gato · resolado_completo \(vibram_xs_grip2, 4mm\) ×2 — 70\.00€/);
+  assert.match(joined, /pie_de_gato · resolado_completo \(vibram_xs_grip2\) ×2 — 70\.00€/);
   assert.match(joined, /bota · puntera ×1 — 15\.00€/);
   assert.match(joined, /Envío GLS: 6\.00€/);
   assert.match(joined, /Total: 91\.00€/);
@@ -67,7 +65,6 @@ test('buildOrderSummary omite la línea de envío cuando el transporte es 0', ()
         tipoCalzado: 'bota',
         servicio: 'puntera',
         material: null,
-        grosor: null,
         cantidad: 1,
         precioUnitario: 15,
         precioSubtotal: 15,
@@ -93,7 +90,7 @@ test('buildOrderSummary usa la descripción reconstruida desde Stripe cuando no 
     orderId: 'GLS-TEST-0003',
     carrito: [
       {
-        descripcion: 'resolado_completo (pie_de_gato) (vibram_xs_grip2, 4mm)',
+        descripcion: 'resolado_completo (pie_de_gato) (vibram_xs_grip2)',
         cantidad: 2,
         precioUnitario: 35,
         precioSubtotal: 70,
@@ -110,5 +107,5 @@ test('buildOrderSummary usa la descripción reconstruida desde Stripe cuando no 
   };
   const summary = buildOrderSummary(orderPayload);
   const joined = summary.lineas.join(' | ');
-  assert.match(joined, /resolado_completo \(pie_de_gato\) \(vibram_xs_grip2, 4mm\) ×2 — 70\.00€/);
+  assert.match(joined, /resolado_completo \(pie_de_gato\) \(vibram_xs_grip2\) ×2 — 70\.00€/);
 });

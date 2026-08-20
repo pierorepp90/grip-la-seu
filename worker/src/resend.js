@@ -21,7 +21,7 @@ function formatearLineaCarrito(linea) {
   if (linea.descripcion) {
     return `${escapeHtml(linea.descripcion)} ×${linea.cantidad} — ${subtotal}€`;
   }
-  const variante = linea.material ? ` (${escapeHtml(linea.material)}, ${escapeHtml(linea.grosor)}mm)` : '';
+  const variante = linea.material ? ` (${escapeHtml(linea.material)})` : '';
   return `${escapeHtml(linea.tipoCalzado)} · ${escapeHtml(linea.servicio)}${variante} ×${linea.cantidad} — ${subtotal}€`;
 }
 

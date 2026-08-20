@@ -9,7 +9,6 @@ const orderPayload = {
       tipoCalzado: 'pie_de_gato',
       servicio: 'resolado_completo',
       material: 'vibram_xs_grip2',
-      grosor: '4',
       cantidad: 2,
       precioUnitario: 35,
       precioSubtotal: 70,
@@ -30,7 +29,7 @@ test('buildOwnerEmail va dirigido al propietario e incluye el carrito y el enví
   assert.deepEqual(email.to, ['owner@example.com']);
   assert.match(email.subject, /GLS-1/);
   assert.match(email.html, /Ana Pérez/);
-  assert.match(email.html, /pie_de_gato · resolado_completo \(vibram_xs_grip2, 4mm\) ×2 — 70\.00€/);
+  assert.match(email.html, /pie_de_gato · resolado_completo \(vibram_xs_grip2\) ×2 — 70\.00€/);
   assert.match(email.html, /Envío GLS: 6\.00€/);
   assert.match(email.html, /76\.00€/);
   assert.match(email.html, /Punt GLS Centre/);
@@ -92,7 +91,7 @@ test('buildOwnerEmail escapa la descripción reconstruida desde Stripe', () => {
   assert(email.html.includes('&lt;script&gt;'));
 });
 
-test('buildOwnerEmail escapa los campos estructurados del carrito (servicio/tipoCalzado/material/grosor)', () => {
+test('buildOwnerEmail escapa los campos estructurados del carrito (servicio/tipoCalzado/material)', () => {
   const payload = {
     ...orderPayload,
     carrito: [
@@ -100,7 +99,6 @@ test('buildOwnerEmail escapa los campos estructurados del carrito (servicio/tipo
         tipoCalzado: '<script>alert(1)</script>',
         servicio: '<img src=x onerror=alert(1)>',
         material: '<b>x</b>',
-        grosor: '<i>y</i>',
         cantidad: 1,
         precioUnitario: 10,
         precioSubtotal: 10,
@@ -111,7 +109,6 @@ test('buildOwnerEmail escapa los campos estructurados del carrito (servicio/tipo
   assert(!email.html.includes('<script>'));
   assert(!email.html.includes('<img'));
   assert(!email.html.includes('<b>x</b>'));
-  assert(!email.html.includes('<i>y</i>'));
   assert(email.html.includes('&lt;script&gt;'));
 });
 

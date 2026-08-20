@@ -85,13 +85,7 @@
               <div class="service-item-selects">
                 <select x-model="resoladoMaterial" :aria-label="$t('material_label')">
                   <option value="vibram_xs_grip2" x-text="$t('material_vibram_xs_grip2')"></option>
-                  <option value="cocida" x-text="$t('material_cocida')"></option>
-                </select>
-                <select x-model="resoladoGrosor" :aria-label="$t('grosor_label')">
-                  <option value="3.5">3.5 mm</option>
-                  <option value="4">4 mm</option>
-                  <option value="4.5">4.5 mm</option>
-                  <option value="5">5 mm</option>
+                  <option value="vibram_xs_grip_edge" x-text="$t('material_vibram_xs_grip_edge')"></option>
                 </select>
               </div>
               <div class="service-item-footer">
@@ -107,13 +101,7 @@
               <div class="service-item-selects">
                 <select x-model="mediaSuelaMaterial" :aria-label="$t('material_label')">
                   <option value="vibram_xs_grip2" x-text="$t('material_vibram_xs_grip2')"></option>
-                  <option value="cocida" x-text="$t('material_cocida')"></option>
-                </select>
-                <select x-model="mediaSuelaGrosor" :aria-label="$t('grosor_label')">
-                  <option value="3.5">3.5 mm</option>
-                  <option value="4">4 mm</option>
-                  <option value="4.5">4.5 mm</option>
-                  <option value="5">5 mm</option>
+                  <option value="vibram_xs_grip_edge" x-text="$t('material_vibram_xs_grip_edge')"></option>
                 </select>
               </div>
               <div class="service-item-footer">
@@ -136,11 +124,11 @@
             <template x-if="carrito.length > 0">
               <div class="cart-summary">
                 <p class="cart-summary-title" x-text="$t('carrito_title')"></p>
-                <template x-for="linea in carrito" :key="linea.tipoCalzado + linea.servicio + linea.material + linea.grosor">
+                <template x-for="linea in carrito" :key="linea.tipoCalzado + linea.servicio + linea.material">
                   <div class="cart-line">
                     <span class="cart-line-info">
                       <span x-text="$t('tipo_' + linea.tipoCalzado) + ' · ' + $t('service_' + linea.servicio + '_title')"></span>
-                      <span class="cart-line-variant" x-show="linea.material" x-text="linea.material ? ($t('material_' + linea.material) + ' · ' + linea.grosor + ' mm') : ''"></span>
+                      <span class="cart-line-variant" x-show="linea.material" x-text="linea.material ? $t('material_' + linea.material) : ''"></span>
                     </span>
                     <span class="cart-line-controls">
                       <button type="button" @click="ajustarCantidad(linea, -1)" aria-label="−">−</button>

@@ -1,27 +1,18 @@
-// Resolado completo · Pie de gato ya confirmado con el propietario.
-// PENDIENTE: confirmar el resto de tarifas (Bota, Media suela) antes de publicar.
+// Precio fijo por tipo de calzado y servicio. El material (Vibram XS Grip2 /
+// XS Grip Edge) es preferencia del cliente y no cambia el precio; el grosor
+// es siempre 4mm, sin selector.
+// Resolado completo, Media suela y Puntera · Pie de gato ya confirmados con
+// el propietario. PENDIENTE: confirmar tarifas de Bota.
 export const PRECIOS = {
   bota: {
-    resolado_completo: {
-      vibram_xs_grip2: { '3.5': 0, '4': 0, '4.5': 0, '5': 0 },
-      cocida: { '3.5': 0, '4': 0, '4.5': 0, '5': 0 },
-    },
-    media_suela: {
-      vibram_xs_grip2: { '3.5': 0, '4': 0, '4.5': 0, '5': 0 },
-      cocida: { '3.5': 0, '4': 0, '4.5': 0, '5': 0 },
-    },
+    resolado_completo: 0,
+    media_suela: 0,
     puntera: 15,
   },
   pie_de_gato: {
-    resolado_completo: {
-      vibram_xs_grip2: { '3.5': 35, '4': 36, '4.5': 37, '5': 38 },
-      cocida: { '3.5': 33, '4': 34, '4.5': 35, '5': 36 },
-    },
-    media_suela: {
-      vibram_xs_grip2: { '3.5': 0, '4': 0, '4.5': 0, '5': 0 },
-      cocida: { '3.5': 0, '4': 0, '4.5': 0, '5': 0 },
-    },
-    puntera: 12,
+    resolado_completo: 44,
+    media_suela: 40,
+    puntera: 8,
   },
 };
 
