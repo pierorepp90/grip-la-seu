@@ -1,7 +1,7 @@
 const ENVIO_GLS_NOMBRE = 'Envío GLS';
 
 export function buildCheckoutSessionParams(orderPayload, siteUrl) {
-  const { orderId, carrito, transporte, nombre, direccion, telefono, email, entrega, precioTotal } =
+  const { orderId, carrito, transporte, nombre, direccion, telefono, email, lang, precioTotal } =
     orderPayload;
 
   const params = new URLSearchParams();
@@ -34,12 +34,15 @@ export function buildCheckoutSessionParams(orderPayload, siteUrl) {
 
   params.set('metadata[order_id]', orderId);
   params.set('metadata[nombre]', nombre);
-  params.set('metadata[direccion]', direccion);
   params.set('metadata[telefono]', telefono);
   params.set('metadata[precio_total]', String(precioTotal));
   params.set('metadata[transporte]', String(transporte));
-  params.set('metadata[entrega_tipo]', entrega.tipo);
-  params.set('metadata[entrega_nombre]', entrega.nombre);
+  params.set('metadata[calle]', direccion.calle);
+  params.set('metadata[numero]', direccion.numero);
+  params.set('metadata[cp]', direccion.codigoPostal);
+  params.set('metadata[ciudad]', direccion.ciudad);
+  params.set('metadata[pais]', direccion.pais);
+  params.set('metadata[lang]', lang);
   return params;
 }
 
@@ -63,10 +66,16 @@ export function orderPayloadFromSession(session) {
     transporte: Number(m.transporte || 0),
     precioTotal: Number(m.precio_total),
     nombre: m.nombre,
-    direccion: m.direccion,
     telefono: m.telefono,
     email: session.customer_email,
-    entrega: { tipo: m.entrega_tipo, nombre: m.entrega_nombre },
+    direccion: {
+      calle: m.calle,
+      numero: m.numero,
+      codigoPostal: m.cp,
+      ciudad: m.ciudad,
+      pais: m.pais,
+    },
+    lang: m.lang,
     metodoPago: 'tarjeta',
   };
 }

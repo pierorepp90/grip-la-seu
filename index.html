@@ -65,6 +65,60 @@
                 <li x-text="linea"></li>
               </template>
             </ul>
+
+            <template x-if="gls && gls.ok">
+              <div class="gls-result">
+                <p x-text="$t('gls_etiqueta_enviada')"></p>
+                <p x-text="$t('gls_referencia') + ': ' + gls.trackId"></p>
+
+                <template x-if="punto">
+                  <div class="punto-gls">
+                    <h3 x-text="$t('gls_punto_title')"></h3>
+                    <p class="punto-nombre">
+                      <span x-text="punto.nombre"></span>
+                      <span class="punto-distancia" x-show="punto.distancia" x-text="punto.distancia"></span>
+                    </p>
+                    <p x-text="punto.direccion"></p>
+                    <p x-show="punto.telefono" x-text="$t('gls_punto_telefono') + ': ' + punto.telefono"></p>
+                    <template x-if="punto.horarios.length > 0">
+                      <div>
+                        <p class="punto-horario-title" x-text="$t('gls_punto_horario')"></p>
+                        <ul class="punto-horarios">
+                          <!-- Clave por día + tramos: solo hemos visto una respuesta real de GLS,
+                               y si algún día manda dos entradas para el mismo weekday, una clave
+                               por weekday haría desaparecer un tramo sin avisar. -->
+                          <template x-for="dia in punto.horarios" :key="dia.weekday + dia.tramos">
+                            <li>
+                              <span class="punto-dia" x-text="$t('dia_' + dia.weekday)"></span>
+                              <span x-text="dia.tramos"></span>
+                            </li>
+                          </template>
+                        </ul>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+
+                <a class="punto-otros" :href="buscadorUrl" target="_blank" rel="noopener" x-text="$t('gls_punto_otros')"></a>
+              </div>
+            </template>
+
+            <template x-if="gls && !gls.ok">
+              <div class="gls-result gls-manual">
+                <h3 x-text="$t('gls_manual_title')"></h3>
+                <p x-text="$t('gls_manual_desc')"></p>
+                <ul class="copy-list">
+                  <template x-for="dato in datosParaPortal" :key="dato.etiqueta">
+                    <li>
+                      <span class="copy-label" x-text="dato.etiqueta"></span>
+                      <span class="copy-value" x-text="dato.valor"></span>
+                      <button type="button" class="btn btn-secondary" @click="copiar(dato.valor)" x-text="copiado === dato.valor ? $t('btn_copiado') : $t('btn_copiar')"></button>
+                    </li>
+                  </template>
+                </ul>
+                <a class="btn btn-primary" :href="portalUrl" target="_blank" rel="noopener" x-text="$t('gls_manual_link')"></a>
+              </div>
+            </template>
           </div>
         </template>
 
@@ -143,6 +197,7 @@
             </template>
 
             <p class="price-total" x-show="carrito.length > 0" x-text="$t('precio_total_label') + ': ' + totalCarrito.toFixed(2) + '€'"></p>
+            <p class="shipping-note" x-show="carrito.length > 0" x-text="transporte === 0 ? $t('envio_gratis') : $t('envio_falta_para_gratis', { importe: faltaParaEnvioGratis.toFixed(2) })"></p>
 
             <div class="modal-nav">
               <span></span>
@@ -157,60 +212,45 @@
 
             <div class="form-field">
               <label for="of-nombre" x-text="$t('nombre_label')"></label>
-              <input id="of-nombre" type="text" x-model="nombre" />
+              <input id="of-nombre" type="text" maxlength="40" x-model="nombre" />
             </div>
             <div class="form-field">
-              <label for="of-direccion" x-text="$t('direccion_label')"></label>
-              <input id="of-direccion" type="text" x-model="direccion" @blur="buscarPuntosGLS()" />
+              <label for="of-email" x-text="$t('email_label')"></label>
+              <input id="of-email" type="email" maxlength="255" x-model="email" />
             </div>
             <div class="form-field">
               <label for="of-telefono" x-text="$t('telefono_label')"></label>
               <input id="of-telefono" type="tel" x-model="telefono" />
             </div>
+
+            <h3 x-text="$t('direccion_label')"></h3>
+
             <div class="form-field">
-              <label for="of-email" x-text="$t('email_label')"></label>
-              <input id="of-email" type="email" x-model="email" />
+              <label for="of-pais" x-text="$t('pais_label')"></label>
+              <select id="of-pais" x-model="pais">
+                <option value="ES" x-text="$t('pais_es')"></option>
+                <option value="PT" x-text="$t('pais_pt')"></option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="of-calle" x-text="$t('calle_label')"></label>
+              <input id="of-calle" type="text" maxlength="40" x-model="calle" />
+            </div>
+            <div class="form-field">
+              <label for="of-numero" x-text="$t('numero_label')"></label>
+              <input id="of-numero" type="text" maxlength="6" x-model="numero" />
+            </div>
+            <div class="form-field">
+              <label for="of-cp" x-text="$t('cp_label')"></label>
+              <input id="of-cp" type="text" maxlength="10" x-model="codigoPostal" />
+            </div>
+            <div class="form-field">
+              <label for="of-ciudad" x-text="$t('ciudad_label')"></label>
+              <input id="of-ciudad" type="text" maxlength="40" x-model="ciudad" />
             </div>
 
-            <label x-text="$t('entrega_label')"></label>
-
-            <div class="delivery-option-card" :class="{ selected: entregaTipo === 'gls' }" tabindex="0" role="button" :aria-pressed="entregaTipo === 'gls'" @click="if (entregaTipo !== 'gls') { entregaTipo = 'gls'; entregaNombre = ''; metodoPago = ''; }" @keydown.enter.self="if (entregaTipo !== 'gls') { entregaTipo = 'gls'; entregaNombre = ''; metodoPago = ''; }" @keydown.space.prevent.self="if (entregaTipo !== 'gls') { entregaTipo = 'gls'; entregaNombre = ''; metodoPago = ''; }">
-              <strong x-text="$t('entrega_gls')"></strong>
-              <template x-if="entregaTipo === 'gls'">
-                <div>
-                  <p x-show="geocodeError" class="error-message" x-text="$t('puntos_geocode_error')"></p>
-                  <p x-text="$t('puntos_cercanos_title')"></p>
-                  <ul class="point-list">
-                    <template x-for="punto in puntosCercanos" :key="punto.nombre">
-                      <li>
-                        <label @click.stop>
-                          <input type="radio" name="punto-gls" :value="punto.nombre" x-model="entregaNombre" />
-                          <span x-text="punto.nombre + (punto.distanceKm ? ' (' + punto.distanceKm.toFixed(1) + ' km)' : '')"></span>
-                        </label>
-                      </li>
-                    </template>
-                  </ul>
-                </div>
-              </template>
-            </div>
-
-            <div class="delivery-option-card" :class="{ selected: entregaTipo === 'tienda' }" tabindex="0" role="button" :aria-pressed="entregaTipo === 'tienda'" @click="if (entregaTipo !== 'tienda') { entregaTipo = 'tienda'; entregaNombre = ''; metodoPago = ''; }" @keydown.enter.self="if (entregaTipo !== 'tienda') { entregaTipo = 'tienda'; entregaNombre = ''; metodoPago = ''; }" @keydown.space.prevent.self="if (entregaTipo !== 'tienda') { entregaTipo = 'tienda'; entregaNombre = ''; metodoPago = ''; }">
-              <strong x-text="$t('entrega_tienda')"></strong>
-              <template x-if="entregaTipo === 'tienda'">
-                <ul class="point-list">
-                  <template x-for="tienda in tiendas" :key="tienda.nombre">
-                    <li>
-                      <label @click.stop>
-                        <input type="radio" name="tienda" :value="tienda.nombre" x-model="entregaNombre" />
-                        <span x-text="tienda.nombre + ' — ' + tienda.direccion"></span>
-                      </label>
-                    </li>
-                  </template>
-                </ul>
-              </template>
-            </div>
-
-            <p class="price-total" x-show="entregaTipo" x-text="incluyeTransporte ? ($t('precio_total_label') + ': ' + precioTotal.toFixed(2) + '€ (' + $t('envio_gls_label') + ': ' + transporteGLS.toFixed(2) + '€)') : ($t('precio_total_label') + ': ' + precioTotal.toFixed(2) + '€')"></p>
+            <p class="price-total" x-text="$t('precio_total_label') + ': ' + precioTotal.toFixed(2) + '€'"></p>
+            <p class="shipping-note" x-text="transporte === 0 ? $t('envio_gratis') : ($t('envio_gls_label') + ': ' + transporte.toFixed(2) + '€')"></p>
 
             <div class="modal-nav">
               <button type="button" class="btn btn-secondary" @click="step = 1" x-text="$t('btn_atras')"></button>
@@ -228,9 +268,7 @@
               <button type="button" class="toggle-option" :class="{ selected: metodoPago === 'bizum' }" @click="metodoPago = 'bizum'" x-text="$t('pago_bizum')"></button>
               <button type="button" class="toggle-option" :class="{ selected: metodoPago === 'transferencia' }" @click="metodoPago = 'transferencia'" x-text="$t('pago_transferencia')"></button>
               <button type="button" class="toggle-option" :class="{ selected: metodoPago === 'tarjeta' }" @click="metodoPago = 'tarjeta'" x-text="$t('pago_tarjeta')"></button>
-              <button type="button" class="toggle-option" :class="{ selected: metodoPago === 'efectivo' }" :disabled="entregaTipo !== 'tienda'" @click="metodoPago = 'efectivo'" x-text="$t('pago_efectivo')"></button>
             </div>
-            <p class="error-message" x-show="entregaTipo !== 'tienda'" x-text="$t('pago_efectivo_solo_tienda')"></p>
 
             <template x-if="metodoPago === 'bizum'">
               <p x-text="$t('pago_bizum_instrucciones')"></p>
@@ -245,7 +283,6 @@
               <button type="button" class="btn btn-secondary" @click="step = 2" x-text="$t('btn_atras')"></button>
               <button type="button" class="btn btn-primary" x-show="metodoPago === 'tarjeta'" :disabled="submitting" @click="pagarConTarjeta()" x-text="$t('btn_pagar_tarjeta')"></button>
               <button type="button" class="btn btn-primary" x-show="metodoPago === 'bizum' || metodoPago === 'transferencia'" :disabled="submitting" @click="confirmarPedido()" x-text="$t('btn_ya_envie')"></button>
-              <button type="button" class="btn btn-primary" x-show="metodoPago === 'efectivo'" :disabled="submitting" @click="confirmarPedido()" x-text="$t('btn_confirmar_pedido')"></button>
             </div>
           </div>
         </template>

@@ -14,38 +14,95 @@ const orderPayload = {
       precioSubtotal: 70,
     },
   ],
-  transporte: 6,
-  precioTotal: 76,
+  transporte: 5,
+  precioTotal: 75,
   nombre: 'Ana Pérez',
-  direccion: 'Carrer Major 1',
+  direccion: {
+    calle: 'Carrer Major',
+    numero: '12',
+    codigoPostal: '25700',
+    ciudad: "La Seu d'Urgell",
+    pais: 'ES',
+  },
   telefono: '+34612345678',
   email: 'ana@example.com',
-  entrega: { tipo: 'gls', nombre: 'Punt GLS Centre' },
   metodoPago: 'bizum',
 };
 
-test('buildOwnerEmail va dirigido al propietario e incluye el carrito y el envío', () => {
-  const email = buildOwnerEmail(orderPayload, 'owner@example.com');
+// Forma real de dropOffLocation, copiada de una respuesta de producción de GLS.
+const dropOffLocation = {
+  name: 'PS GO PACK EXPRESS',
+  distance: 0.18218337,
+  address: {
+    street: 'Carrer dels Canonges 52 bajos',
+    city: "La Seu d'Urgell",
+    zipCode: '25700',
+    countryCode: 'ES',
+  },
+  externalContactDetails: { phone: '635106811' },
+  openingDays: [
+    { weekday: 'TUE', hours: [{ openingTime: '09:30', closingTime: '13:30' }] },
+    { weekday: 'SAT', hours: [{ openingTime: '09:00', closingTime: '14:00' }] },
+  ],
+};
+
+const glsOk = { ok: true, returnOrderId: 'RET-99', trackId: 'Z79MB8U2', dropOffLocation };
+const glsOkSinPunto = { ...glsOk, dropOffLocation: null };
+const glsFallo = {
+  ok: false,
+  error: 'HTTP 500',
+  portalUrl: 'https://returns.gls-group.com/climberup/create-return',
+};
+
+test('buildOwnerEmail incluye el carrito, el envío y la dirección desglosada', () => {
+  const email = buildOwnerEmail(orderPayload, 'owner@example.com', glsOk);
   assert.deepEqual(email.to, ['owner@example.com']);
   assert.match(email.subject, /GLS-1/);
   assert.match(email.html, /Ana Pérez/);
   assert.match(email.html, /pie_de_gato · resolado_completo \(vibram_xs_grip2\) ×2 — 70\.00€/);
-  assert.match(email.html, /Envío GLS: 6\.00€/);
-  assert.match(email.html, /76\.00€/);
-  assert.match(email.html, /Punt GLS Centre/);
+  assert.match(email.html, /Envío GLS: 5\.00€/);
+  assert.match(email.html, /75\.00€/);
+  assert.match(email.html, /Carrer Major 12/);
+  assert.match(email.html, /25700/);
+  assert.match(email.html, /La Seu d&#39;Urgell/);
 });
 
-test('buildCustomerEmail va dirigido al comprador y confirma la recepción', () => {
-  const email = buildCustomerEmail(orderPayload, 'ana@example.com');
-  assert.deepEqual(email.to, ['ana@example.com']);
-  assert.match(email.subject, /GLS-1/);
-  assert.match(email.html, /pie_de_gato · resolado_completo/);
-  assert.match(email.html, /Punt GLS Centre/);
+test('buildOwnerEmail muestra la referencia de la devolución cuando GLS respondió', () => {
+  const email = buildOwnerEmail(orderPayload, 'owner@example.com', glsOk);
+  assert.match(email.html, /Devolución GLS: Z79MB8U2/);
+  assert.match(email.html, /id RET-99/);
+  assert.doesNotMatch(email.html, /No se pudo crear/);
+});
+
+test('buildOwnerEmail avisa al propietario cuando GLS falló', () => {
+  const email = buildOwnerEmail(orderPayload, 'owner@example.com', glsFallo);
+  assert.match(email.html, /No se pudo crear la devolución/);
+  assert.match(email.html, /HTTP 500/);
 });
 
 test('buildOwnerEmail omite la línea de envío cuando el transporte es 0', () => {
-  const email = buildOwnerEmail({ ...orderPayload, transporte: 0 }, 'owner@example.com');
+  const email = buildOwnerEmail({ ...orderPayload, transporte: 0 }, 'owner@example.com', glsOk);
   assert.doesNotMatch(email.html, /Envío GLS/);
+});
+
+test('buildCustomerEmail en modo A remite a la etiqueta que envía GLS', () => {
+  const email = buildCustomerEmail(orderPayload, 'ana@example.com', glsOk);
+  assert.deepEqual(email.to, ['ana@example.com']);
+  assert.match(email.subject, /GLS-1/);
+  assert.match(email.html, /pie_de_gato · resolado_completo/);
+  assert.match(email.html, /Z79MB8U2/);
+  assert.match(email.html, /GLS te ha enviado/);
+  assert.doesNotMatch(email.html, /returns\.gls-group\.com/);
+});
+
+test('buildCustomerEmail en modo B da el enlace al portal y los datos a copiar', () => {
+  const email = buildCustomerEmail(orderPayload, 'ana@example.com', glsFallo);
+  assert.match(email.html, /returns\.gls-group\.com\/climberup\/create-return/);
+  assert.match(email.html, /GLS-1/);
+  assert.match(email.html, /Carrer Major/);
+  assert.match(email.html, /25700/);
+  assert.doesNotMatch(email.html, /GLS te ha enviado/);
+  assert.doesNotMatch(email.html, /HTTP 500/);
 });
 
 test('sendEmail hace POST autenticado a Resend', async () => {
@@ -68,10 +125,10 @@ test('buildOwnerEmail escapa caracteres HTML en campos de usuario', () => {
   const maliciousPayload = {
     ...orderPayload,
     nombre: '<script>alert(1)</script>',
-    direccion: '"><img src=x>',
+    direccion: { ...orderPayload.direccion, calle: '"><img src=x>' },
     email: 'test<script>@example.com',
   };
-  const email = buildOwnerEmail(maliciousPayload, 'owner@example.com');
+  const email = buildOwnerEmail(maliciousPayload, 'owner@example.com', glsOk);
   assert(!email.html.includes('<script>'));
   assert(email.html.includes('&lt;script&gt;'));
   assert(!email.html.includes('<img'));
@@ -86,7 +143,7 @@ test('buildOwnerEmail escapa la descripción reconstruida desde Stripe', () => {
       { descripcion: '<script>alert(1)</script>', cantidad: 1, precioUnitario: 10, precioSubtotal: 10 },
     ],
   };
-  const email = buildOwnerEmail(payload, 'owner@example.com');
+  const email = buildOwnerEmail(payload, 'owner@example.com', glsOk);
   assert(!email.html.includes('<script>'));
   assert(email.html.includes('&lt;script&gt;'));
 });
@@ -105,31 +162,155 @@ test('buildOwnerEmail escapa los campos estructurados del carrito (servicio/tipo
       },
     ],
   };
-  const email = buildOwnerEmail(payload, 'owner@example.com');
+  const email = buildOwnerEmail(payload, 'owner@example.com', glsOk);
   assert(!email.html.includes('<script>'));
   assert(!email.html.includes('<img'));
   assert(!email.html.includes('<b>x</b>'));
   assert(email.html.includes('&lt;script&gt;'));
 });
 
-test('buildOwnerEmail y buildCustomerEmail escapan orderId, teléfono, entrega.nombre y metodoPago', () => {
+test('buildOwnerEmail y buildCustomerEmail escapan orderId, teléfono, dirección y metodoPago', () => {
   const payload = {
     ...orderPayload,
     orderId: '<script>alert(1)</script>',
     telefono: '<img src=x onerror=alert(1)>',
-    entrega: { tipo: 'tienda', nombre: '<b>tienda maliciosa</b>' },
+    direccion: {
+      calle: '<b>calle maliciosa</b>',
+      numero: '"><i>1</i>',
+      codigoPostal: '<u>25700</u>',
+      ciudad: '<em>ciudad</em>',
+      pais: 'ES',
+    },
     metodoPago: '<i>bizum</i>',
   };
-  const ownerEmail = buildOwnerEmail(payload, 'owner@example.com');
+  const ownerEmail = buildOwnerEmail(payload, 'owner@example.com', glsOk);
   assert(!ownerEmail.html.includes('<script>'));
   assert(!ownerEmail.html.includes('<img'));
-  assert(!ownerEmail.html.includes('<b>tienda maliciosa</b>'));
+  assert(!ownerEmail.html.includes('<b>calle maliciosa</b>'));
   assert(!ownerEmail.html.includes('<i>bizum</i>'));
   assert(ownerEmail.html.includes('&lt;script&gt;'));
 
-  const customerEmail = buildCustomerEmail(payload, 'ana@example.com');
+  const customerEmail = buildCustomerEmail(payload, 'ana@example.com', glsFallo);
   assert(!customerEmail.html.includes('<script>'));
-  assert(!customerEmail.html.includes('<b>tienda maliciosa</b>'));
-  assert(!customerEmail.html.includes('<i>bizum</i>'));
+  assert(!customerEmail.html.includes('<b>calle maliciosa</b>'));
   assert(customerEmail.html.includes('&lt;script&gt;'));
+});
+
+test('buildOwnerEmail y buildCustomerEmail escapan el trackId, que viene de la API de GLS', () => {
+  const glsMalicioso = {
+    ok: true,
+    returnOrderId: '<img src=x onerror=alert(1)>',
+    trackId: '<script>alert(1)</script>',
+    dropOffLocation: null,
+  };
+  const ownerEmail = buildOwnerEmail(orderPayload, 'owner@example.com', glsMalicioso);
+  assert(!ownerEmail.html.includes('<script>'));
+  assert(!ownerEmail.html.includes('<img'));
+  assert(ownerEmail.html.includes('&lt;script&gt;'));
+
+  const customerEmail = buildCustomerEmail(orderPayload, 'ana@example.com', glsMalicioso);
+  assert(!customerEmail.html.includes('<script>'));
+  assert(customerEmail.html.includes('&lt;script&gt;'));
+});
+
+test('buildOwnerEmail escapa la cantidad, que llega sin validar por /api/notify-order', () => {
+  const payload = {
+    ...orderPayload,
+    carrito: [
+      {
+        tipoCalzado: 'pie_de_gato',
+        servicio: 'resolado_completo',
+        material: null,
+        cantidad: '1<img src=x onerror=alert(1)>',
+        precioUnitario: 10,
+        precioSubtotal: 10,
+      },
+    ],
+  };
+  const email = buildOwnerEmail(payload, 'owner@example.com', glsOk);
+  assert(!email.html.includes('<img'));
+  assert(email.html.includes('&lt;img'));
+});
+
+test('buildOwnerEmail escapa la cantidad tambien en la linea reconstruida desde Stripe', () => {
+  const payload = {
+    ...orderPayload,
+    carrito: [
+      {
+        descripcion: 'resolado_completo (pie_de_gato)',
+        cantidad: '1<img src=x onerror=alert(1)>',
+        precioUnitario: 10,
+        precioSubtotal: 10,
+      },
+    ],
+  };
+  const email = buildOwnerEmail(payload, 'owner@example.com', glsOk);
+  assert(!email.html.includes('<img'));
+  assert(email.html.includes('&lt;img'));
+});
+
+test('buildOwnerEmail escapa el returnOrderId y el error que vienen de GLS', () => {
+  const email = buildOwnerEmail(orderPayload, 'owner@example.com', {
+    ok: false,
+    error: '<script>alert(1)</script>',
+    portalUrl: 'https://returns.gls-group.com/climberup/create-return',
+  });
+  assert(!email.html.includes('<script>'));
+  assert(email.html.includes('&lt;script&gt;'));
+});
+
+test('buildCustomerEmail en modo A enseña el punto de entrega que asignó GLS', () => {
+  const email = buildCustomerEmail(orderPayload, 'ana@example.com', glsOk);
+  assert.match(email.html, /Dónde dejar el paquete/);
+  assert.match(email.html, /PS GO PACK EXPRESS/);
+  assert.match(email.html, /Carrer dels Canonges 52 bajos, 25700 La Seu d&#39;Urgell/);
+  assert.match(email.html, /182 m/);
+  assert.match(email.html, /635106811/);
+  assert.match(email.html, /Martes: 09:30–13:30/);
+  assert.match(email.html, /Sábado: 09:00–14:00/);
+});
+
+test('buildCustomerEmail en modo A enlaza el buscador de puntos GLS', () => {
+  const email = buildCustomerEmail(orderPayload, 'ana@example.com', glsOk);
+  assert(email.html.includes('https://www.gls-spain.es/es/parcel-shops/'));
+});
+
+test('buildCustomerEmail en modo A sigue funcionando si GLS no devolvió punto', () => {
+  const email = buildCustomerEmail(orderPayload, 'ana@example.com', glsOkSinPunto);
+  assert.match(email.html, /GLS te ha enviado/);
+  assert.match(email.html, /Z79MB8U2/);
+  assert.doesNotMatch(email.html, /Dónde dejar el paquete/);
+  assert.doesNotMatch(email.html, /undefined|null|NaN/);
+  // El buscador se enseña igual: sin punto asignado es la única pista de dónde dejarlo.
+  assert(email.html.includes('https://www.gls-spain.es/es/parcel-shops/'));
+});
+
+test('buildCustomerEmail escapa el punto de entrega, que viene entero de la API de GLS', () => {
+  const glsMalicioso = {
+    ...glsOk,
+    dropOffLocation: {
+      name: '<script>alert(1)</script>',
+      distance: 0.5,
+      address: {
+        street: '<img src=x onerror=alert(1)>',
+        city: '<b>ciudad</b>',
+        zipCode: '"><i>25700</i>',
+        countryCode: 'ES',
+      },
+      externalContactDetails: { phone: '<u>635106811</u>' },
+      openingDays: [
+        { weekday: '<em>TUE</em>', hours: [{ openingTime: '<s>09:30</s>', closingTime: '13:30' }] },
+      ],
+    },
+  };
+  const email = buildCustomerEmail(orderPayload, 'ana@example.com', glsMalicioso);
+  assert(!email.html.includes('<script>'));
+  assert(!email.html.includes('<img'));
+  assert(!email.html.includes('<b>ciudad</b>'));
+  assert(!email.html.includes('<i>25700</i>'));
+  assert(!email.html.includes('<u>635106811</u>'));
+  assert(!email.html.includes('<em>TUE</em>'));
+  assert(!email.html.includes('<s>09:30</s>'));
+  assert(email.html.includes('&lt;script&gt;'));
+  assert(email.html.includes('&lt;img'));
 });

@@ -25,3 +25,11 @@ test('t() cae a catalán si el idioma no existe, y a la clave si falta la traduc
   assert.equal(t('fr', 'btn_siguiente'), DICT.ca.btn_siguiente);
   assert.equal(t('ca', 'clave_inexistente'), 'clave_inexistente');
 });
+
+test('t() sustituye los parámetros entre llaves', () => {
+  assert.equal(t('es', 'envio_falta_para_gratis', { importe: '12.00' }), 'Te faltan 12.00€ para el envío gratis');
+});
+
+test('t() deja el placeholder intacto si no se le pasa el parámetro', () => {
+  assert.match(t('es', 'envio_falta_para_gratis'), /\{importe\}/);
+});

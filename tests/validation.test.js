@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isNonEmpty, isValidSpanishPhone, isValidEmail } from '../js/validation.js';
+import { isNonEmpty, isValidPhone, isValidPostalCode, isValidEmail } from '../js/validation.js';
 
 test('isNonEmpty rechaza vacíos y solo-espacios', () => {
   assert.equal(isNonEmpty('Ana'), true);
@@ -9,18 +9,49 @@ test('isNonEmpty rechaza vacíos y solo-espacios', () => {
   assert.equal(isNonEmpty(undefined), false);
 });
 
-test('isValidSpanishPhone acepta formatos comunes', () => {
-  assert.equal(isValidSpanishPhone('612345678'), true);
-  assert.equal(isValidSpanishPhone('+34612345678'), true);
-  assert.equal(isValidSpanishPhone('+34 612 345 678'), true);
-  assert.equal(isValidSpanishPhone('612-345-678'), true);
+test('isValidPhone acepta móviles y fijos españoles', () => {
+  assert.equal(isValidPhone('612345678', 'ES'), true);
+  assert.equal(isValidPhone('+34612345678', 'ES'), true);
+  assert.equal(isValidPhone('+34 612 345 678', 'ES'), true);
+  assert.equal(isValidPhone('612-345-678', 'ES'), true);
 });
 
-test('isValidSpanishPhone rechaza formatos inválidos', () => {
-  assert.equal(isValidSpanishPhone('12345'), false);
-  assert.equal(isValidSpanishPhone('512345678'), false);
-  assert.equal(isValidSpanishPhone('abcdefghi'), false);
-  assert.equal(isValidSpanishPhone(''), false);
+test('isValidPhone acepta móviles portugueses', () => {
+  assert.equal(isValidPhone('912345678', 'PT'), true);
+  assert.equal(isValidPhone('+351912345678', 'PT'), true);
+  assert.equal(isValidPhone('+351 912 345 678', 'PT'), true);
+});
+
+test('isValidPhone no mezcla países', () => {
+  assert.equal(isValidPhone('612345678', 'PT'), false);
+  assert.equal(isValidPhone('+351912345678', 'ES'), false);
+});
+
+test('isValidPhone rechaza formatos inválidos y países desconocidos', () => {
+  assert.equal(isValidPhone('12345', 'ES'), false);
+  assert.equal(isValidPhone('512345678', 'ES'), false);
+  assert.equal(isValidPhone('abcdefghi', 'ES'), false);
+  assert.equal(isValidPhone('', 'ES'), false);
+  assert.equal(isValidPhone('612345678', 'FR'), false);
+});
+
+test('isValidPostalCode acepta 5 dígitos en España', () => {
+  assert.equal(isValidPostalCode('25700', 'ES'), true);
+  assert.equal(isValidPostalCode(' 25700 ', 'ES'), true);
+});
+
+test('isValidPostalCode acepta los dos formatos portugueses', () => {
+  assert.equal(isValidPostalCode('1000', 'PT'), true);
+  assert.equal(isValidPostalCode('1000-260', 'PT'), true);
+});
+
+test('isValidPostalCode rechaza formatos inválidos y países desconocidos', () => {
+  assert.equal(isValidPostalCode('2570', 'ES'), false);
+  assert.equal(isValidPostalCode('257000', 'ES'), false);
+  assert.equal(isValidPostalCode('ABCDE', 'ES'), false);
+  assert.equal(isValidPostalCode('1000-26', 'PT'), false);
+  assert.equal(isValidPostalCode('25700', 'FR'), false);
+  assert.equal(isValidPostalCode(undefined, 'ES'), false);
 });
 
 test('isValidEmail acepta emails con formato válido', () => {

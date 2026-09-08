@@ -1,9 +1,17 @@
 name = "grip-la-seu-api"
 main = "src/index.js"
 compatibility_date = "2026-08-13"
-account_id = "a758cd1019845ef9a66297e93da0c5b0"
+account_id = "3e004fd2e364427a563f9add0df1731e"
 
 [vars]
 SITE_URL = "https://griplaseu.es"
 ALLOWED_ORIGIN = "https://griplaseu.es"
 OWNER_EMAIL = "grlaseu@gmail.com"
+GLS_API_BASE = "https://api.gls-group.net/order-management/shop-returns/portal/v3"
+GLS_PORTAL_NAME = "climberup"
+GLS_RETURN_REASON = "Sin motivo específico"
+GLS_PORTAL_URL = "https://returns.gls-group.com/climberup/create-return"
+
+[[kv_namespaces]]
+binding = "PEDIDOS"
+id = "548f48e8c2a54522b241d4c09dab3024"

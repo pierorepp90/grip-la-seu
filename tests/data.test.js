@@ -1,8 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PRECIOS, PRECIO_TRANSPORTE_GLS } from '../js/precios.js';
-import { PUNTOS_GLS } from '../js/puntos-gls.js';
-import { TIENDAS } from '../js/tiendas.js';
+import { PRECIOS, PRECIO_TRANSPORTE_GLS, ENVIO_GRATIS_DESDE } from '../js/precios.js';
 import { calculateLinePrice } from '../js/pricing.js';
 
 test('PRECIOS tiene tarifa plana numérica para cada tipo de calzado y servicio', () => {
@@ -14,23 +12,7 @@ test('PRECIOS tiene tarifa plana numérica para cada tipo de calzado y servicio'
   }
 });
 
-test('PRECIO_TRANSPORTE_GLS es un número', () => {
+test('PRECIO_TRANSPORTE_GLS y ENVIO_GRATIS_DESDE son números', () => {
   assert.equal(typeof PRECIO_TRANSPORTE_GLS, 'number');
-});
-
-test('PUNTOS_GLS tiene al menos un punto con nombre y coordenadas numéricas', () => {
-  assert.ok(PUNTOS_GLS.length >= 1);
-  for (const punto of PUNTOS_GLS) {
-    assert.equal(typeof punto.nombre, 'string');
-    assert.equal(typeof punto.lat, 'number');
-    assert.equal(typeof punto.lon, 'number');
-  }
-});
-
-test('TIENDAS tiene al menos una tienda con nombre y dirección', () => {
-  assert.ok(TIENDAS.length >= 1);
-  for (const tienda of TIENDAS) {
-    assert.equal(typeof tienda.nombre, 'string');
-    assert.equal(typeof tienda.direccion, 'string');
-  }
+  assert.equal(typeof ENVIO_GRATIS_DESDE, 'number');
 });
