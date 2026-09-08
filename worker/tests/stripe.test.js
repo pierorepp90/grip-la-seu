@@ -21,30 +21,43 @@ const orderPayload = {
       precioSubtotal: 70,
     },
   ],
-  transporte: 6,
-  precioTotal: 76,
+  transporte: 5,
+  precioTotal: 75,
   nombre: 'Ana Pérez',
-  direccion: 'Carrer Major 1',
+  direccion: {
+    calle: 'Carrer Major',
+    numero: '12',
+    codigoPostal: '25700',
+    ciudad: "La Seu d'Urgell",
+    pais: 'ES',
+  },
   telefono: '+34612345678',
   email: 'ana@example.com',
-  entrega: { tipo: 'gls', nombre: 'Punt GLS Centre' },
+  lang: 'ca',
   metodoPago: 'tarjeta',
 };
 
 test('buildCheckoutSessionParams genera un line_item por línea del carrito más el envío', () => {
-  const params = buildCheckoutSessionParams(orderPayload, 'https://pierorepp90.github.io/grip-la-seu');
+  const params = buildCheckoutSessionParams(orderPayload, 'https://griplaseu.es');
   assert.equal(params.get('mode'), 'payment');
   assert.equal(params.get('customer_email'), 'ana@example.com');
   assert.equal(params.get('line_items[0][quantity]'), '2');
   assert.equal(params.get('line_items[0][price_data][unit_amount]'), '3500');
   assert.match(params.get('line_items[0][price_data][product_data][name]'), /resolado_completo/);
   assert.equal(params.get('line_items[1][quantity]'), '1');
-  assert.equal(params.get('line_items[1][price_data][unit_amount]'), '600');
+  assert.equal(params.get('line_items[1][price_data][unit_amount]'), '500');
   assert.equal(params.get('line_items[1][price_data][product_data][name]'), 'Envío GLS');
   assert.equal(params.get('metadata[order_id]'), 'GLS-1');
   assert.equal(params.get('metadata[nombre]'), 'Ana Pérez');
-  assert.equal(params.get('metadata[transporte]'), '6');
-  assert.equal(params.get('metadata[entrega_tipo]'), 'gls');
+  assert.equal(params.get('metadata[transporte]'), '5');
+  assert.equal(params.get('metadata[calle]'), 'Carrer Major');
+  assert.equal(params.get('metadata[numero]'), '12');
+  assert.equal(params.get('metadata[cp]'), '25700');
+  assert.equal(params.get('metadata[ciudad]'), "La Seu d'Urgell");
+  assert.equal(params.get('metadata[pais]'), 'ES');
+  assert.equal(params.get('metadata[lang]'), 'ca');
+  assert.equal(params.get('metadata[direccion]'), null);
+  assert.equal(params.get('metadata[entrega_tipo]'), null);
   assert.match(params.get('success_url'), /gracias\.html\?session_id=\{CHECKOUT_SESSION_ID\}/);
 });
 
@@ -80,7 +93,7 @@ test('buildCarritoFromLineItems reconstruye el carrito desde los line_items de S
   assert.equal(carrito[0].precioSubtotal, 70);
 });
 
-test('orderPayloadFromSession reconstruye el pedido desde metadata y line_items', () => {
+test('orderPayloadFromSession reconstruye el pedido con la dirección desglosada', () => {
   const session = {
     customer_email: 'ana@example.com',
     line_items: {
@@ -96,12 +109,15 @@ test('orderPayloadFromSession reconstruye el pedido desde metadata y line_items'
     metadata: {
       order_id: 'GLS-1',
       nombre: 'Ana Pérez',
-      direccion: 'Carrer Major 1',
       telefono: '+34612345678',
       precio_total: '70',
       transporte: '0',
-      entrega_tipo: 'gls',
-      entrega_nombre: 'Punt GLS Centre',
+      calle: 'Carrer Major',
+      numero: '12',
+      cp: '25700',
+      ciudad: "La Seu d'Urgell",
+      pais: 'ES',
+      lang: 'ca',
     },
   };
   const result = orderPayloadFromSession(session);
@@ -109,7 +125,15 @@ test('orderPayloadFromSession reconstruye el pedido desde metadata y line_items'
   assert.equal(result.carrito.length, 1);
   assert.equal(result.transporte, 0);
   assert.equal(result.precioTotal, 70);
-  assert.equal(result.entrega.nombre, 'Punt GLS Centre');
+  assert.equal(result.email, 'ana@example.com');
+  assert.equal(result.lang, 'ca');
+  assert.deepEqual(result.direccion, {
+    calle: 'Carrer Major',
+    numero: '12',
+    codigoPostal: '25700',
+    ciudad: "La Seu d'Urgell",
+    pais: 'ES',
+  });
   assert.equal(result.metodoPago, 'tarjeta');
 });
 
