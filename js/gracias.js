@@ -28,6 +28,7 @@ function renderGls(gls) {
   const contenedor = document.getElementById('gracias-gls');
   if (!contenedor) return;
   contenedor.replaceChildren();
+  contenedor.classList.remove('gls-manual');
   if (!gls) return;
 
   if (gls.ok) {
@@ -39,11 +40,16 @@ function renderGls(gls) {
     return;
   }
 
+  // En la ruta de fallo este enlace es la única acción de recuperación que le queda a alguien
+  // que ya ha pagado, así que se pinta como botón primario igual que en el modal.
+  contenedor.classList.add('gls-manual');
+
   const titulo = document.createElement('h3');
   titulo.textContent = t(lang, 'gls_manual_title');
   const descripcion = document.createElement('p');
   descripcion.textContent = t(lang, 'gls_manual_desc');
   const enlace = document.createElement('a');
+  enlace.className = 'btn btn-primary';
   enlace.href = gls.portalUrl || GLS_PORTAL_URL;
   enlace.target = '_blank';
   enlace.rel = 'noopener';
