@@ -19,3 +19,10 @@ export function minPrecioServicio(precios, servicio) {
     .filter((precio) => typeof precio === 'number');
   return Math.min(...valores);
 }
+
+export function calcularTransporte(totalCarrito, precioTransporte, umbralGratis) {
+  if (typeof totalCarrito !== 'number' || Number.isNaN(totalCarrito)) {
+    throw new Error('totalCarrito debe ser un número');
+  }
+  return totalCarrito >= umbralGratis ? 0 : precioTransporte;
+}

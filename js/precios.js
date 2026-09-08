@@ -16,5 +16,6 @@ export const PRECIOS = {
   },
 };
 
-// PENDIENTE: confirmar tarifa real de envío GLS.
-export const PRECIO_TRANSPORTE_GLS = 0;
+// Envío GLS: 5€, gratis a partir de 150€ de servicios (sin contar el propio envío).
+export const PRECIO_TRANSPORTE_GLS = 5;
+export const ENVIO_GRATIS_DESDE = 150;

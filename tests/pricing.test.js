@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { calculateLinePrice, minPrecioServicio } from '../js/pricing.js';
+import { calculateLinePrice, minPrecioServicio, calcularTransporte } from '../js/pricing.js';
 
 const PRECIOS = {
   bota: {
@@ -42,4 +42,21 @@ test('minPrecioServicio devuelve el mínimo entre bota y pie_de_gato', () => {
 
 test('minPrecioServicio funciona con precios planos', () => {
   assert.equal(minPrecioServicio(PRECIOS, 'puntera'), 8);
+});
+
+test('calcularTransporte cobra el envío por debajo del umbral', () => {
+  assert.equal(calcularTransporte(44, 5, 150), 5);
+});
+
+test('calcularTransporte no cobra envío justo en el umbral', () => {
+  assert.equal(calcularTransporte(150, 5, 150), 0);
+});
+
+test('calcularTransporte no cobra envío por encima del umbral', () => {
+  assert.equal(calcularTransporte(200, 5, 150), 0);
+});
+
+test('calcularTransporte lanza error si el total no es un número', () => {
+  assert.throws(() => calcularTransporte('44', 5, 150));
+  assert.throws(() => calcularTransporte(Number.NaN, 5, 150));
 });
