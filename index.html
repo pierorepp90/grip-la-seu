@@ -84,7 +84,10 @@
                       <div>
                         <p class="punto-horario-title" x-text="$t('gls_punto_horario')"></p>
                         <ul class="punto-horarios">
-                          <template x-for="dia in punto.horarios" :key="dia.weekday">
+                          <!-- Clave por día + tramos: solo hemos visto una respuesta real de GLS,
+                               y si algún día manda dos entradas para el mismo weekday, una clave
+                               por weekday haría desaparecer un tramo sin avisar. -->
+                          <template x-for="dia in punto.horarios" :key="dia.weekday + dia.tramos">
                             <li>
                               <span class="punto-dia" x-text="$t('dia_' + dia.weekday)"></span>
                               <span x-text="dia.tramos"></span>
