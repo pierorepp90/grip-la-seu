@@ -51,8 +51,8 @@ export function buildOrderSummary(orderPayload) {
     `Email: ${email}`,
     `Pago: ${metodoPago}`,
   );
-  if (gls && gls.ok && gls.returnOrderId) {
-    lineas.push(`Devolución GLS: ${gls.returnOrderId}`);
+  if (gls && gls.ok && gls.trackId) {
+    lineas.push(`Devolución GLS: ${gls.trackId}`);
   }
 
   return { orderId, lineas };

@@ -50,15 +50,29 @@ export function buildReturnOrderRequest(orderPayload, env) {
   };
 }
 
-// `dropOffLocation` se devuelve crudo: todavía no hemos visto una respuesta real de producción,
-// así que no asumimos nombres de campo. Llega al frontend en la respuesta JSON para poder
-// pintarlo el día que conozcamos su forma, sin tocar el Worker.
+// Forma real de la respuesta, verificada contra producción el 2026-09-08:
+//
+//   returnOrderId: "b6e39dbf-6834-40d0-a3bc-e53c97f72e04"   (UUID interno)
+//   references: { trackId: "Z79MB8U2", parcelId: "374549840588" }
+//   dropOffLocations.data[0]: {
+//     parcelShopId, name: "PS GO PACK EXPRESS", type: "SHOP",
+//     distance: 0.182,                                  (km)
+//     address: { street, city, zipCode, countryCode, latitude, longitude },
+//     externalContactDetails: { phone }, openingDays: [{ weekday, hours: [...] }]
+//   }
+//
+// `trackId` es el codigo corto que una persona usa para seguir el envio; `returnOrderId` es
+// un UUID que solo sirve para la API. Al cliente se le enseña el primero. Se deja un respaldo
+// al UUID por si GLS dejara de mandar `references`.
+// `dropOffLocation` sigue pasandose crudo: es un objeto grande y quien lo pinte elige que
+// campos usar.
 export function parseReturnOrderResponse(json) {
   if (!json || !json.returnOrderId) {
     throw new Error('GLS respondió sin returnOrderId');
   }
   return {
     returnOrderId: json.returnOrderId,
+    trackId: json.references?.trackId ?? json.returnOrderId,
     dropOffLocation: json.dropOffLocations?.data?.[0] ?? null,
   };
 }

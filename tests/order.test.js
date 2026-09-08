@@ -105,8 +105,11 @@ test('buildOrderSummary añade la referencia de la devolución GLS cuando existe
     email: 'ana@example.com',
     metodoPago: 'bizum',
   };
-  const conGls = buildOrderSummary({ ...base, gls: { ok: true, returnOrderId: 'RET-99' } });
-  assert.match(conGls.lineas.join(' | '), /Devolución GLS: RET-99/);
+  const conGls = buildOrderSummary({
+    ...base,
+    gls: { ok: true, returnOrderId: 'RET-99', trackId: 'Z79MB8U2' },
+  });
+  assert.match(conGls.lineas.join(' | '), /Devolución GLS: Z79MB8U2/);
 
   const sinGls = buildOrderSummary({ ...base, gls: { ok: false, error: 'timeout' } });
   assert.doesNotMatch(sinGls.lineas.join(' | '), /Devolución GLS/);

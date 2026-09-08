@@ -21,7 +21,7 @@ function direccionHtml(direccion) {
 
 function glsHtmlPropietario(gls) {
   if (gls && gls.ok) {
-    return `<li>Devolución GLS: ${escapeHtml(gls.returnOrderId)}</li>`;
+    return `<li>Devolución GLS: ${escapeHtml(gls.trackId)} <small>(id ${escapeHtml(gls.returnOrderId)})</small></li>`;
   }
   return `<li><strong>⚠️ No se pudo crear la devolución GLS automáticamente — el cliente ha recibido instrucciones manuales.</strong> Motivo: ${escapeHtml(gls?.error ?? 'desconocido')}</li>`;
 }
@@ -31,7 +31,7 @@ function glsHtmlCliente(orderPayload, gls) {
     return `
       <p><strong>GLS te ha enviado</strong> un email aparte con tu etiqueta de envío y el código QR
       para dejar el paquete en tu punto GLS más cercano.</p>
-      <p>Referencia de la devolución: <strong>${escapeHtml(gls.returnOrderId)}</strong></p>
+      <p>Referencia de la devolución: <strong>${escapeHtml(gls.trackId)}</strong></p>
     `;
   }
   const { orderId, nombre, email, direccion } = orderPayload;

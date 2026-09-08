@@ -29,7 +29,7 @@ const orderPayload = {
   metodoPago: 'bizum',
 };
 
-const glsOk = { ok: true, returnOrderId: 'RET-99', dropOffLocation: null };
+const glsOk = { ok: true, returnOrderId: 'RET-99', trackId: 'Z79MB8U2', dropOffLocation: null };
 const glsFallo = {
   ok: false,
   error: 'HTTP 500',
@@ -51,7 +51,8 @@ test('buildOwnerEmail incluye el carrito, el envío y la dirección desglosada',
 
 test('buildOwnerEmail muestra la referencia de la devolución cuando GLS respondió', () => {
   const email = buildOwnerEmail(orderPayload, 'owner@example.com', glsOk);
-  assert.match(email.html, /Devolución GLS: RET-99/);
+  assert.match(email.html, /Devolución GLS: Z79MB8U2/);
+  assert.match(email.html, /id RET-99/);
   assert.doesNotMatch(email.html, /No se pudo crear/);
 });
 
@@ -71,7 +72,7 @@ test('buildCustomerEmail en modo A remite a la etiqueta que envía GLS', () => {
   assert.deepEqual(email.to, ['ana@example.com']);
   assert.match(email.subject, /GLS-1/);
   assert.match(email.html, /pie_de_gato · resolado_completo/);
-  assert.match(email.html, /RET-99/);
+  assert.match(email.html, /Z79MB8U2/);
   assert.match(email.html, /GLS te ha enviado/);
   assert.doesNotMatch(email.html, /returns\.gls-group\.com/);
 });
@@ -174,6 +175,23 @@ test('buildOwnerEmail y buildCustomerEmail escapan orderId, teléfono, direcció
   const customerEmail = buildCustomerEmail(payload, 'ana@example.com', glsFallo);
   assert(!customerEmail.html.includes('<script>'));
   assert(!customerEmail.html.includes('<b>calle maliciosa</b>'));
+  assert(customerEmail.html.includes('&lt;script&gt;'));
+});
+
+test('buildOwnerEmail y buildCustomerEmail escapan el trackId, que viene de la API de GLS', () => {
+  const glsMalicioso = {
+    ok: true,
+    returnOrderId: '<img src=x onerror=alert(1)>',
+    trackId: '<script>alert(1)</script>',
+    dropOffLocation: null,
+  };
+  const ownerEmail = buildOwnerEmail(orderPayload, 'owner@example.com', glsMalicioso);
+  assert(!ownerEmail.html.includes('<script>'));
+  assert(!ownerEmail.html.includes('<img'));
+  assert(ownerEmail.html.includes('&lt;script&gt;'));
+
+  const customerEmail = buildCustomerEmail(orderPayload, 'ana@example.com', glsMalicioso);
+  assert(!customerEmail.html.includes('<script>'));
   assert(customerEmail.html.includes('&lt;script&gt;'));
 });
 

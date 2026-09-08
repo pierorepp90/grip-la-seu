@@ -35,7 +35,7 @@ function renderGls(gls) {
     const aviso = document.createElement('p');
     aviso.textContent = t(lang, 'gls_etiqueta_enviada');
     const referencia = document.createElement('p');
-    referencia.textContent = `${t(lang, 'gls_referencia')}: ${gls.returnOrderId}`;
+    referencia.textContent = `${t(lang, 'gls_referencia')}: ${gls.trackId}`;
     contenedor.append(aviso, referencia);
     return;
   }

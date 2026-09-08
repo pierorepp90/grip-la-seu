@@ -78,13 +78,23 @@ test('buildReturnOrderRequest recorta espacios sobrantes', () => {
   assert.equal(request.sender.address.street, 'Carrer Major');
 });
 
-test('parseReturnOrderResponse extrae el id y el primer punto de entrega', () => {
+test('parseReturnOrderResponse extrae el id, el trackId y el primer punto de entrega', () => {
   const result = parseReturnOrderResponse({
     returnOrderId: 'RET-99',
+    references: { trackId: 'Z79MB8U2', parcelId: '374549840588' },
     dropOffLocations: { data: [{ id: 'PS-1' }, { id: 'PS-2' }] },
   });
   assert.equal(result.returnOrderId, 'RET-99');
+  assert.equal(result.trackId, 'Z79MB8U2');
   assert.deepEqual(result.dropOffLocation, { id: 'PS-1' });
+});
+
+test('parseReturnOrderResponse cae al UUID si GLS no manda references', () => {
+  assert.equal(parseReturnOrderResponse({ returnOrderId: 'RET-99' }).trackId, 'RET-99');
+  assert.equal(
+    parseReturnOrderResponse({ returnOrderId: 'RET-99', references: {} }).trackId,
+    'RET-99',
+  );
 });
 
 test('parseReturnOrderResponse devuelve null si no hay puntos de entrega', () => {
