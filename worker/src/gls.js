@@ -62,3 +62,29 @@ export function parseReturnOrderResponse(json) {
     dropOffLocation: json.dropOffLocations?.data?.[0] ?? null,
   };
 }
+
+const TIMEOUT_MS = 10000;
+
+export async function createReturnOrder(request, env, fetchFn = fetch, timeoutMs = TIMEOUT_MS) {
+  const controller = new AbortController();
+  const temporizador = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetchFn(`${env.GLS_API_BASE}/${env.GLS_PORTAL_NAME}/return-orders`, {
+      method: 'POST',
+      headers: {
+        Authorization: env.GLS_CLIENT_KEY,
+        'X-Portal-Token': env.GLS_PORTAL_TOKEN,
+        'X-Portal-Name': env.GLS_PORTAL_NAME,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new Error(`GLS rechazó la creación de la devolución (HTTP ${response.status})`);
+    }
+    return await response.json();
+  } finally {
+    clearTimeout(temporizador);
+  }
+}

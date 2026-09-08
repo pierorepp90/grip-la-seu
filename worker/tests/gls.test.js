@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildReturnOrderRequest, parseReturnOrderResponse } from '../src/gls.js';
+import { buildReturnOrderRequest, parseReturnOrderResponse, createReturnOrder } from '../src/gls.js';
 
 const env = {
   GLS_API_BASE: 'https://api.gls-group.net/order-management/shop-returns/portal/v3',
@@ -98,4 +98,38 @@ test('parseReturnOrderResponse devuelve null si no hay puntos de entrega', () =>
 test('parseReturnOrderResponse lanza error si falta el returnOrderId', () => {
   assert.throws(() => parseReturnOrderResponse({}));
   assert.throws(() => parseReturnOrderResponse(null));
+});
+
+test('createReturnOrder hace POST autenticado al portal correcto', async () => {
+  const fakeFetch = async (url, options) => {
+    assert.equal(
+      url,
+      'https://api.gls-group.net/order-management/shop-returns/portal/v3/climberup/return-orders',
+    );
+    assert.equal(options.method, 'POST');
+    assert.equal(options.headers.Authorization, 'clave-abc');
+    assert.equal(options.headers['X-Portal-Token'], 'token-123');
+    assert.equal(options.headers['X-Portal-Name'], 'climberup');
+    assert.equal(options.headers['Content-Type'], 'application/json');
+    assert.equal(JSON.parse(options.body).originalOrderReference, 'GLS-1');
+    return { ok: true, json: async () => ({ returnOrderId: 'RET-99' }) };
+  };
+  const json = await createReturnOrder({ originalOrderReference: 'GLS-1' }, env, fakeFetch);
+  assert.equal(json.returnOrderId, 'RET-99');
+});
+
+test('createReturnOrder lanza error si GLS responde con error HTTP', async () => {
+  const fakeFetch = async () => ({ ok: false, status: 422 });
+  await assert.rejects(
+    () => createReturnOrder({}, env, fakeFetch),
+    /422/,
+  );
+});
+
+test('createReturnOrder aborta la petición si GLS no responde a tiempo', async () => {
+  const fakeFetch = (url, options) =>
+    new Promise((resolve, reject) => {
+      options.signal.addEventListener('abort', () => reject(new Error('AbortError')));
+    });
+  await assert.rejects(() => createReturnOrder({}, env, fakeFetch, 10), /AbortError/);
 });
