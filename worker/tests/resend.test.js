@@ -46,7 +46,7 @@ test('buildOwnerEmail incluye el carrito, el envío y la dirección desglosada',
   assert.match(email.html, /75\.00€/);
   assert.match(email.html, /Carrer Major 12/);
   assert.match(email.html, /25700/);
-  assert.match(email.html, /La Seu d'Urgell/);
+  assert.match(email.html, /La Seu d&#39;Urgell/);
 });
 
 test('buildOwnerEmail muestra la referencia de la devolución cuando GLS respondió', () => {
@@ -106,7 +106,7 @@ test('buildOwnerEmail escapa caracteres HTML en campos de usuario', () => {
   const maliciousPayload = {
     ...orderPayload,
     nombre: '<script>alert(1)</script>',
-    direccion: '"><img src=x>',
+    direccion: { ...orderPayload.direccion, calle: '"><img src=x>' },
     email: 'test<script>@example.com',
   };
   const email = buildOwnerEmail(maliciousPayload, 'owner@example.com', glsOk);
