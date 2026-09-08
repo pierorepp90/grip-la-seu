@@ -1,13 +1,9 @@
 // js/app.js
 import { LANGS, t } from './i18n.js';
-import { PRECIOS, PRECIO_TRANSPORTE_GLS } from './precios.js';
-import { PUNTOS_GLS } from './puntos-gls.js';
-import { TIENDAS } from './tiendas.js';
-import { calculateLinePrice, minPrecioServicio } from './pricing.js';
-import { findNearestPoints } from './geo.js';
-import { isNonEmpty, isValidSpanishPhone, isValidEmail } from './validation.js';
+import { PRECIOS, PRECIO_TRANSPORTE_GLS, ENVIO_GRATIS_DESDE } from './precios.js';
+import { calculateLinePrice, minPrecioServicio, calcularTransporte } from './pricing.js';
+import { isNonEmpty, isValidPhone, isValidPostalCode, isValidEmail } from './validation.js';
 import { generateOrderId, buildOrderSummary } from './order.js';
-import { geocodeAddress } from './geocode.js';
 import { createCheckoutSession, notifyOrder } from './api.js';
 import { API_BASE_URL } from './config.js';
 
@@ -16,7 +12,7 @@ document.addEventListener('alpine:init', () => {
     lang: localStorage.getItem('lang') || 'ca',
   });
 
-  Alpine.magic('t', () => (key) => t(Alpine.store('i18n').lang, key));
+  Alpine.magic('t', () => (key, params) => t(Alpine.store('i18n').lang, key, params));
 
   Alpine.data('site', () => ({
     menuOpen: false,
@@ -46,18 +42,20 @@ document.addEventListener('alpine:init', () => {
     carrito: [],
     resoladoMaterial: 'vibram_xs_grip2',
     mediaSuelaMaterial: 'vibram_xs_grip2',
-    transporteGLS: PRECIO_TRANSPORTE_GLS,
 
     // Paso 2
     nombre: '',
-    direccion: '',
     telefono: '',
     email: '',
-    entregaTipo: '',
-    entregaNombre: '',
-    puntosCercanos: PUNTOS_GLS.slice(0, 3),
-    tiendas: TIENDAS,
-    geocodeError: false,
+    calle: '',
+    numero: '',
+    codigoPostal: '',
+    ciudad: '',
+    pais: 'ES',
+
+    // Resultado de la devolución GLS, lo devuelve el Worker
+    gls: null,
+    copiado: '',
 
     // Paso 3
     metodoPago: '',
@@ -95,12 +93,16 @@ document.addEventListener('alpine:init', () => {
       return this.carrito.reduce((suma, linea) => suma + linea.precioSubtotal, 0);
     },
 
-    get incluyeTransporte() {
-      return this.entregaTipo === 'gls';
+    get transporte() {
+      return calcularTransporte(this.totalCarrito, PRECIO_TRANSPORTE_GLS, ENVIO_GRATIS_DESDE);
+    },
+
+    get faltaParaEnvioGratis() {
+      return Math.max(0, ENVIO_GRATIS_DESDE - this.totalCarrito);
     },
 
     get precioTotal() {
-      return this.totalCarrito + (this.incluyeTransporte ? this.transporteGLS : 0);
+      return this.totalCarrito + this.transporte;
     },
 
     get canProceedStep1() {
@@ -110,11 +112,12 @@ document.addEventListener('alpine:init', () => {
     get canProceedStep2() {
       return Boolean(
         isNonEmpty(this.nombre) &&
-          isNonEmpty(this.direccion) &&
-          isValidSpanishPhone(this.telefono) &&
           isValidEmail(this.email) &&
-          this.entregaTipo &&
-          this.entregaNombre,
+          isValidPhone(this.telefono, this.pais) &&
+          isNonEmpty(this.calle) &&
+          isNonEmpty(this.numero) &&
+          isValidPostalCode(this.codigoPostal, this.pais) &&
+          isNonEmpty(this.ciudad),
       );
     },
 
@@ -175,23 +178,6 @@ document.addEventListener('alpine:init', () => {
       if (linea) this.ajustarCantidad(linea, -1);
     },
 
-    async buscarPuntosGLS() {
-      if (!isNonEmpty(this.direccion)) return;
-      let coords = null;
-      try {
-        coords = await geocodeAddress(this.direccion);
-      } catch (error) {
-        console.error(error);
-      }
-      if (!coords) {
-        this.geocodeError = true;
-        this.puntosCercanos = PUNTOS_GLS;
-        return;
-      }
-      this.geocodeError = false;
-      this.puntosCercanos = findNearestPoints(coords.lat, coords.lon, PUNTOS_GLS, 3);
-    },
-
     buildOrderPayload() {
       if (!this.orderId) {
         this.orderId = generateOrderId();
@@ -199,15 +185,43 @@ document.addEventListener('alpine:init', () => {
       return {
         orderId: this.orderId,
         carrito: this.carrito.map((linea) => ({ ...linea })),
-        transporte: this.incluyeTransporte ? this.transporteGLS : 0,
+        transporte: this.transporte,
         precioTotal: this.precioTotal,
         nombre: this.nombre,
-        direccion: this.direccion,
         telefono: this.telefono,
         email: this.email,
-        entrega: { tipo: this.entregaTipo, nombre: this.entregaNombre },
+        direccion: {
+          calle: this.calle,
+          numero: this.numero,
+          codigoPostal: this.codigoPostal,
+          ciudad: this.ciudad,
+          pais: this.pais,
+        },
+        lang: Alpine.store('i18n').lang,
         metodoPago: this.metodoPago,
       };
+    },
+
+    get datosParaPortal() {
+      return [
+        { etiqueta: 'Número de pedido', valor: this.orderId },
+        { etiqueta: 'Motivo de devolución', valor: 'Sin motivo específico' },
+        { etiqueta: 'Nombre', valor: this.nombre },
+        { etiqueta: 'Correo electrónico', valor: this.email },
+        { etiqueta: 'Calle', valor: this.calle },
+        { etiqueta: 'Número', valor: this.numero },
+        { etiqueta: 'Código postal', valor: this.codigoPostal },
+        { etiqueta: 'Ciudad', valor: this.ciudad },
+        { etiqueta: 'País', valor: this.pais },
+      ];
+    },
+
+    async copiar(valor) {
+      await navigator.clipboard.writeText(valor);
+      this.copiado = valor;
+      setTimeout(() => {
+        if (this.copiado === valor) this.copiado = '';
+      }, 2000);
     },
 
     async confirmarPedido() {
@@ -215,8 +229,9 @@ document.addEventListener('alpine:init', () => {
       this.submitting = true;
       try {
         const payload = this.buildOrderPayload();
-        await notifyOrder(API_BASE_URL, payload);
-        this.summaryLines = buildOrderSummary(payload).lineas;
+        const respuesta = await notifyOrder(API_BASE_URL, payload);
+        this.gls = respuesta.gls ?? { ok: false };
+        this.summaryLines = buildOrderSummary({ ...payload, gls: this.gls }).lineas;
         this.success = true;
       } catch (error) {
         console.error(error);
