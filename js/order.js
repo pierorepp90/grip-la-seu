@@ -16,6 +16,15 @@ function formatearLineaCarrito(linea) {
   return `${linea.tipoCalzado} · ${linea.servicio}${variante} ×${linea.cantidad} — ${subtotal}€`;
 }
 
+export function direccionLineas(direccion) {
+  return [
+    `Dirección: ${direccion.calle} ${direccion.numero}`,
+    `Código postal: ${direccion.codigoPostal}`,
+    `Ciudad: ${direccion.ciudad}`,
+    `País: ${direccion.pais}`,
+  ];
+}
+
 export function buildOrderSummary(orderPayload) {
   const {
     orderId,
@@ -26,14 +35,9 @@ export function buildOrderSummary(orderPayload) {
     direccion,
     telefono,
     email,
-    entrega,
     metodoPago,
+    gls,
   } = orderPayload;
-
-  const entregaTexto =
-    entrega.tipo === 'gls'
-      ? `Punto GLS: ${entrega.nombre}`
-      : `Tienda asociada: ${entrega.nombre}`;
 
   const lineas = [`Referencia: ${orderId}`, ...carrito.map(formatearLineaCarrito)];
   if (transporte > 0) {
@@ -42,12 +46,14 @@ export function buildOrderSummary(orderPayload) {
   lineas.push(
     `Total: ${precioTotal.toFixed(2)}€`,
     `Nombre: ${nombre}`,
-    `Dirección: ${direccion}`,
+    ...direccionLineas(direccion),
     `Teléfono: ${telefono}`,
     `Email: ${email}`,
-    `Entrega: ${entregaTexto}`,
     `Pago: ${metodoPago}`,
   );
+  if (gls && gls.ok && gls.returnOrderId) {
+    lineas.push(`Devolución GLS: ${gls.returnOrderId}`);
+  }
 
   return { orderId, lineas };
 }
