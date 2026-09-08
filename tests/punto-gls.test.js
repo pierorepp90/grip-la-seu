@@ -35,6 +35,11 @@ test('formatearDistancia usa kilómetros con un decimal a partir de 1', () => {
   assert.equal(formatearDistancia(12.34), '12.3 km');
 });
 
+test('formatearDistancia cambia de unidad al redondear, no antes', () => {
+  // 0.9996 km son 999.6 m, que redondean a 1000: se pinta en km, no "1000 m".
+  assert.equal(formatearDistancia(0.9996), '1.0 km');
+});
+
 test('formatearDistancia devuelve null si no hay distancia', () => {
   assert.equal(formatearDistancia(undefined), null);
   assert.equal(formatearDistancia(null), null);
