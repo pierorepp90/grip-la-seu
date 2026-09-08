@@ -10,10 +10,48 @@ function escapeHtml(value) {
   })[char]);
 }
 
-function entregaTexto(entrega) {
-  return entrega.tipo === 'gls'
-    ? `Punto GLS: ${escapeHtml(entrega.nombre)}`
-    : `Tienda asociada: ${escapeHtml(entrega.nombre)}`;
+function direccionHtml(direccion) {
+  return [
+    `<li>Dirección: ${escapeHtml(direccion.calle)} ${escapeHtml(direccion.numero)}</li>`,
+    `<li>Código postal: ${escapeHtml(direccion.codigoPostal)}</li>`,
+    `<li>Ciudad: ${escapeHtml(direccion.ciudad)}</li>`,
+    `<li>País: ${escapeHtml(direccion.pais)}</li>`,
+  ].join('\n');
+}
+
+function glsHtmlPropietario(gls) {
+  if (gls && gls.ok) {
+    return `<li>Devolución GLS: ${escapeHtml(gls.returnOrderId)}</li>`;
+  }
+  return `<li><strong>⚠️ No se pudo crear la devolución GLS automáticamente — el cliente ha recibido instrucciones manuales.</strong> Motivo: ${escapeHtml(gls?.error ?? 'desconocido')}</li>`;
+}
+
+function glsHtmlCliente(orderPayload, gls) {
+  if (gls && gls.ok) {
+    return `
+      <p><strong>GLS te ha enviado</strong> un email aparte con tu etiqueta de envío y el código QR
+      para dejar el paquete en tu punto GLS más cercano.</p>
+      <p>Referencia de la devolución: <strong>${escapeHtml(gls.returnOrderId)}</strong></p>
+    `;
+  }
+  const { orderId, nombre, email, direccion } = orderPayload;
+  return `
+    <h3>Crea tu etiqueta de envío</h3>
+    <p>No hemos podido generar tu etiqueta automáticamente. Créala tú en el portal de GLS —tarda
+    menos de un minuto— con estos datos:</p>
+    <ul>
+      <li>Número de pedido: <strong>${escapeHtml(orderId)}</strong></li>
+      <li>Motivo de devolución: Sin motivo específico</li>
+      <li>Nombre: ${escapeHtml(nombre)}</li>
+      <li>Correo electrónico: ${escapeHtml(email)}</li>
+      <li>Calle: ${escapeHtml(direccion.calle)}</li>
+      <li>Número: ${escapeHtml(direccion.numero)}</li>
+      <li>Código postal: ${escapeHtml(direccion.codigoPostal)}</li>
+      <li>Ciudad: ${escapeHtml(direccion.ciudad)}</li>
+      <li>País: ${escapeHtml(direccion.pais)}</li>
+    </ul>
+    <p><a href="${escapeHtml(gls?.portalUrl ?? '')}">Abrir el portal de GLS</a></p>
+  `;
 }
 
 function formatearLineaCarrito(linea) {
@@ -33,8 +71,8 @@ function lineasCarritoHtml(orderPayload) {
   return lineas.join('\n');
 }
 
-export function buildOwnerEmail(orderPayload, ownerEmail) {
-  const { orderId, precioTotal, nombre, direccion, telefono, email, entrega, metodoPago } = orderPayload;
+export function buildOwnerEmail(orderPayload, ownerEmail, gls) {
+  const { orderId, precioTotal, nombre, direccion, telefono, email, metodoPago } = orderPayload;
 
   return {
     from: FROM_ADDRESS,
@@ -46,18 +84,18 @@ export function buildOwnerEmail(orderPayload, ownerEmail) {
         ${lineasCarritoHtml(orderPayload)}
         <li>Precio total: ${precioTotal.toFixed(2)}€</li>
         <li>Nombre: ${escapeHtml(nombre)}</li>
-        <li>Dirección: ${escapeHtml(direccion)}</li>
+        ${direccionHtml(direccion)}
         <li>Teléfono: ${escapeHtml(telefono)}</li>
         <li>Email: ${escapeHtml(email)}</li>
-        <li>Entrega: ${entregaTexto(entrega)}</li>
         <li>Pago: ${escapeHtml(metodoPago)}</li>
+        ${glsHtmlPropietario(gls)}
       </ul>
     `,
   };
 }
 
-export function buildCustomerEmail(orderPayload, customerEmailAddress) {
-  const { orderId, precioTotal, entrega, metodoPago } = orderPayload;
+export function buildCustomerEmail(orderPayload, customerEmailAddress, gls) {
+  const { orderId, precioTotal, metodoPago } = orderPayload;
 
   return {
     from: FROM_ADDRESS,
@@ -69,9 +107,9 @@ export function buildCustomerEmail(orderPayload, customerEmailAddress) {
       <ul>
         ${lineasCarritoHtml(orderPayload)}
         <li>Precio total: ${precioTotal.toFixed(2)}€</li>
-        <li>Entrega: ${entregaTexto(entrega)}</li>
         <li>Pago: ${escapeHtml(metodoPago)}</li>
       </ul>
+      ${glsHtmlCliente(orderPayload, gls)}
       <p>Nos pondremos en contacto contigo si necesitamos algo más.</p>
     `,
   };
