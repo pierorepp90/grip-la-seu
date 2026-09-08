@@ -70,6 +70,33 @@
               <div class="gls-result">
                 <p x-text="$t('gls_etiqueta_enviada')"></p>
                 <p x-text="$t('gls_referencia') + ': ' + gls.trackId"></p>
+
+                <template x-if="punto">
+                  <div class="punto-gls">
+                    <h3 x-text="$t('gls_punto_title')"></h3>
+                    <p class="punto-nombre">
+                      <span x-text="punto.nombre"></span>
+                      <span class="punto-distancia" x-show="punto.distancia" x-text="punto.distancia"></span>
+                    </p>
+                    <p x-text="punto.direccion"></p>
+                    <p x-show="punto.telefono" x-text="$t('gls_punto_telefono') + ': ' + punto.telefono"></p>
+                    <template x-if="punto.horarios.length > 0">
+                      <div>
+                        <p class="punto-horario-title" x-text="$t('gls_punto_horario')"></p>
+                        <ul class="punto-horarios">
+                          <template x-for="dia in punto.horarios" :key="dia.weekday">
+                            <li>
+                              <span class="punto-dia" x-text="$t('dia_' + dia.weekday)"></span>
+                              <span x-text="dia.tramos"></span>
+                            </li>
+                          </template>
+                        </ul>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+
+                <a class="punto-otros" :href="buscadorUrl" target="_blank" rel="noopener" x-text="$t('gls_punto_otros')"></a>
               </div>
             </template>
 

@@ -2,7 +2,8 @@
 import { t } from './i18n.js';
 import { buildOrderSummary } from './order.js';
 import { confirmPayment } from './api.js';
-import { API_BASE_URL, GLS_PORTAL_URL } from './config.js';
+import { API_BASE_URL, GLS_PORTAL_URL, GLS_BUSCADOR_URL } from './config.js';
+import { formatearPunto } from './punto-gls.js';
 
 const lang = localStorage.getItem('lang') || 'ca';
 const titleEl = document.getElementById('gracias-title');
@@ -24,6 +25,61 @@ function render(titleKey, messageKey, orderId = '', summaryLines = [], gls = nul
   renderGls(gls);
 }
 
+function crearBloquePunto(punto) {
+  const bloque = document.createElement('div');
+  bloque.className = 'punto-gls';
+
+  const titulo = document.createElement('h3');
+  titulo.textContent = t(lang, 'gls_punto_title');
+  bloque.append(titulo);
+
+  const nombre = document.createElement('p');
+  nombre.className = 'punto-nombre';
+  nombre.textContent = punto.distancia ? `${punto.nombre} · ${punto.distancia}` : punto.nombre;
+  bloque.append(nombre);
+
+  const direccion = document.createElement('p');
+  direccion.textContent = punto.direccion;
+  bloque.append(direccion);
+
+  if (punto.telefono) {
+    const telefono = document.createElement('p');
+    telefono.textContent = `${t(lang, 'gls_punto_telefono')}: ${punto.telefono}`;
+    bloque.append(telefono);
+  }
+
+  if (punto.horarios.length > 0) {
+    const horarioTitulo = document.createElement('p');
+    horarioTitulo.className = 'punto-horario-title';
+    horarioTitulo.textContent = t(lang, 'gls_punto_horario');
+    const lista = document.createElement('ul');
+    lista.className = 'punto-horarios';
+    for (const dia of punto.horarios) {
+      const li = document.createElement('li');
+      const nombreDia = document.createElement('span');
+      nombreDia.className = 'punto-dia';
+      nombreDia.textContent = t(lang, `dia_${dia.weekday}`);
+      const tramos = document.createElement('span');
+      tramos.textContent = dia.tramos;
+      li.append(nombreDia, tramos);
+      lista.append(li);
+    }
+    bloque.append(horarioTitulo, lista);
+  }
+
+  return bloque;
+}
+
+function crearEnlaceBuscador() {
+  const enlace = document.createElement('a');
+  enlace.className = 'punto-otros';
+  enlace.href = GLS_BUSCADOR_URL;
+  enlace.target = '_blank';
+  enlace.rel = 'noopener';
+  enlace.textContent = t(lang, 'gls_punto_otros');
+  return enlace;
+}
+
 function renderGls(gls) {
   const contenedor = document.getElementById('gracias-gls');
   if (!contenedor) return;
@@ -37,6 +93,12 @@ function renderGls(gls) {
     const referencia = document.createElement('p');
     referencia.textContent = `${t(lang, 'gls_referencia')}: ${gls.trackId}`;
     contenedor.append(aviso, referencia);
+
+    // El buscador se pinta siempre: aunque GLS no haya devuelto punto, el cliente sigue
+    // necesitando saber dónde dejar el paquete.
+    const punto = formatearPunto(gls.dropOffLocation);
+    if (punto) contenedor.append(crearBloquePunto(punto));
+    contenedor.append(crearEnlaceBuscador());
     return;
   }
 

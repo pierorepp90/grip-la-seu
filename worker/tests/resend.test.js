@@ -29,7 +29,25 @@ const orderPayload = {
   metodoPago: 'bizum',
 };
 
-const glsOk = { ok: true, returnOrderId: 'RET-99', trackId: 'Z79MB8U2', dropOffLocation: null };
+// Forma real de dropOffLocation, copiada de una respuesta de producción de GLS.
+const dropOffLocation = {
+  name: 'PS GO PACK EXPRESS',
+  distance: 0.18218337,
+  address: {
+    street: 'Carrer dels Canonges 52 bajos',
+    city: "La Seu d'Urgell",
+    zipCode: '25700',
+    countryCode: 'ES',
+  },
+  externalContactDetails: { phone: '635106811' },
+  openingDays: [
+    { weekday: 'TUE', hours: [{ openingTime: '09:30', closingTime: '13:30' }] },
+    { weekday: 'SAT', hours: [{ openingTime: '09:00', closingTime: '14:00' }] },
+  ],
+};
+
+const glsOk = { ok: true, returnOrderId: 'RET-99', trackId: 'Z79MB8U2', dropOffLocation };
+const glsOkSinPunto = { ...glsOk, dropOffLocation: null };
 const glsFallo = {
   ok: false,
   error: 'HTTP 500',
@@ -203,4 +221,60 @@ test('buildOwnerEmail escapa el returnOrderId y el error que vienen de GLS', () 
   });
   assert(!email.html.includes('<script>'));
   assert(email.html.includes('&lt;script&gt;'));
+});
+
+test('buildCustomerEmail en modo A enseña el punto de entrega que asignó GLS', () => {
+  const email = buildCustomerEmail(orderPayload, 'ana@example.com', glsOk);
+  assert.match(email.html, /Dónde dejar el paquete/);
+  assert.match(email.html, /PS GO PACK EXPRESS/);
+  assert.match(email.html, /Carrer dels Canonges 52 bajos, 25700 La Seu d&#39;Urgell/);
+  assert.match(email.html, /182 m/);
+  assert.match(email.html, /635106811/);
+  assert.match(email.html, /Martes: 09:30–13:30/);
+  assert.match(email.html, /Sábado: 09:00–14:00/);
+});
+
+test('buildCustomerEmail en modo A enlaza el buscador de puntos GLS', () => {
+  const email = buildCustomerEmail(orderPayload, 'ana@example.com', glsOk);
+  assert(email.html.includes('https://www.gls-spain.es/es/parcel-shops/'));
+});
+
+test('buildCustomerEmail en modo A sigue funcionando si GLS no devolvió punto', () => {
+  const email = buildCustomerEmail(orderPayload, 'ana@example.com', glsOkSinPunto);
+  assert.match(email.html, /GLS te ha enviado/);
+  assert.match(email.html, /Z79MB8U2/);
+  assert.doesNotMatch(email.html, /Dónde dejar el paquete/);
+  assert.doesNotMatch(email.html, /undefined|null|NaN/);
+  // El buscador se enseña igual: sin punto asignado es la única pista de dónde dejarlo.
+  assert(email.html.includes('https://www.gls-spain.es/es/parcel-shops/'));
+});
+
+test('buildCustomerEmail escapa el punto de entrega, que viene entero de la API de GLS', () => {
+  const glsMalicioso = {
+    ...glsOk,
+    dropOffLocation: {
+      name: '<script>alert(1)</script>',
+      distance: 0.5,
+      address: {
+        street: '<img src=x onerror=alert(1)>',
+        city: '<b>ciudad</b>',
+        zipCode: '"><i>25700</i>',
+        countryCode: 'ES',
+      },
+      externalContactDetails: { phone: '<u>635106811</u>' },
+      openingDays: [
+        { weekday: '<em>TUE</em>', hours: [{ openingTime: '<s>09:30</s>', closingTime: '13:30' }] },
+      ],
+    },
+  };
+  const email = buildCustomerEmail(orderPayload, 'ana@example.com', glsMalicioso);
+  assert(!email.html.includes('<script>'));
+  assert(!email.html.includes('<img'));
+  assert(!email.html.includes('<b>ciudad</b>'));
+  assert(!email.html.includes('<i>25700</i>'));
+  assert(!email.html.includes('<u>635106811</u>'));
+  assert(!email.html.includes('<em>TUE</em>'));
+  assert(!email.html.includes('<s>09:30</s>'));
+  assert(email.html.includes('&lt;script&gt;'));
+  assert(email.html.includes('&lt;img'));
 });

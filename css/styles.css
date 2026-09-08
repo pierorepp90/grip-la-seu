@@ -602,3 +602,51 @@ footer.site-footer {
   font-weight: 600;
   word-break: break-word;
 }
+
+.punto-gls {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-left: 3px solid var(--color-amber);
+  background: #fff7ea;
+}
+
+.punto-nombre {
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.punto-distancia {
+  font-weight: 400;
+  color: var(--color-slate);
+  margin-left: 0.5rem;
+}
+
+.punto-horario-title {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  color: var(--color-slate);
+  margin: 0.75rem 0 0.25rem;
+}
+
+.punto-horarios {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.punto-horarios li {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.punto-dia {
+  flex: 0 0 6.5rem;
+  color: var(--color-slate);
+}
+
+.punto-otros {
+  display: inline-block;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}

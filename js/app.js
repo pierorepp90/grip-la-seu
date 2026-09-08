@@ -5,7 +5,8 @@ import { calculateLinePrice, minPrecioServicio, calcularTransporte } from './pri
 import { isNonEmpty, isValidPhone, isValidPostalCode, isValidEmail } from './validation.js';
 import { generateOrderId, buildOrderSummary } from './order.js';
 import { createCheckoutSession, notifyOrder } from './api.js';
-import { API_BASE_URL, GLS_PORTAL_URL } from './config.js';
+import { API_BASE_URL, GLS_PORTAL_URL, GLS_BUSCADOR_URL } from './config.js';
+import { formatearPunto } from './punto-gls.js';
 
 document.addEventListener('alpine:init', () => {
   Alpine.store('i18n', {
@@ -218,6 +219,14 @@ document.addEventListener('alpine:init', () => {
 
     get portalUrl() {
       return this.gls?.portalUrl || GLS_PORTAL_URL;
+    },
+
+    get punto() {
+      return formatearPunto(this.gls?.dropOffLocation);
+    },
+
+    get buscadorUrl() {
+      return GLS_BUSCADOR_URL;
     },
 
     async copiar(valor) {
