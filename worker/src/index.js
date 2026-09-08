@@ -8,6 +8,42 @@ import {
   orderPayloadFromSession,
 } from './stripe.js';
 import { buildOwnerEmail, buildCustomerEmail, sendEmail } from './resend.js';
+import { buildReturnOrderRequest, createReturnOrder, parseReturnOrderResponse } from './gls.js';
+
+const KV_TTL_SEGUNDOS = 60 * 60 * 24 * 90;
+
+// El binding es opcional a propósito: sin él (dev local, tests) el Worker sigue funcionando,
+// simplemente sin deduplicar.
+async function leerProcesado(env, clave) {
+  if (!env.PEDIDOS) return null;
+  const raw = await env.PEDIDOS.get(clave);
+  return raw ? JSON.parse(raw) : null;
+}
+
+async function guardarProcesado(env, clave, valor) {
+  if (!env.PEDIDOS) return;
+  await env.PEDIDOS.put(clave, JSON.stringify(valor), { expirationTtl: KV_TTL_SEGUNDOS });
+}
+
+// Nunca lanza: un fallo de GLS no puede tumbar un pedido ya confirmado o ya cobrado.
+// El propietario se entera por el aviso que buildOwnerEmail añade cuando ok es false.
+async function resolveGlsReturn(orderPayload, env) {
+  try {
+    const request = buildReturnOrderRequest(orderPayload, env);
+    const json = await createReturnOrder(request, env);
+    return { ok: true, ...parseReturnOrderResponse(json) };
+  } catch (error) {
+    console.error('No se pudo crear la devolución GLS', error);
+    return { ok: false, error: error.message, portalUrl: env.GLS_PORTAL_URL };
+  }
+}
+
+async function enviarEmails(orderPayload, gls, env) {
+  await Promise.all([
+    sendEmail(buildOwnerEmail(orderPayload, env.OWNER_EMAIL, gls), env.RESEND_API_KEY),
+    sendEmail(buildCustomerEmail(orderPayload, orderPayload.email, gls), env.RESEND_API_KEY),
+  ]);
+}
 
 async function handleCreateCheckoutSession(request, env, cors) {
   const orderPayload = await request.json();
@@ -18,38 +54,57 @@ async function handleCreateCheckoutSession(request, env, cors) {
 
 async function handleNotifyOrder(request, env, cors) {
   const orderPayload = await request.json();
-  const ownerEmail = buildOwnerEmail(orderPayload, env.OWNER_EMAIL);
-  const customerEmail = buildCustomerEmail(orderPayload, orderPayload.email);
-  await Promise.all([
-    sendEmail(ownerEmail, env.RESEND_API_KEY),
-    sendEmail(customerEmail, env.RESEND_API_KEY),
-  ]);
-  return Response.json({ ok: true }, { headers: cors });
+  const clave = `order:${orderPayload.orderId}`;
+
+  const yaProcesado = await leerProcesado(env, clave);
+  if (yaProcesado) {
+    return Response.json({ ok: true, gls: yaProcesado.gls }, { headers: cors });
+  }
+
+  const gls = await resolveGlsReturn(orderPayload, env);
+  await enviarEmails(orderPayload, gls, env);
+  await guardarProcesado(env, clave, { gls, processedAt: new Date().toISOString() });
+
+  return Response.json({ ok: true, gls }, { headers: cors });
 }
 
-// Nota: sin base de datos no hay forma de deduplicar. Si el cliente recarga
-// gracias.html tras un pago ya confirmado, esta función reenvía ambos emails.
-// Limitación aceptada para este alcance (mismo criterio que la ausencia de
-// webhook de Stripe, documentada en la spec) — no añadir Workers KV u otra
-// infraestructura para esto salvo que el propietario lo pida explícitamente.
 async function handleConfirmPayment(url, env, cors) {
   const sessionId = url.searchParams.get('session_id');
   if (!sessionId || !/^cs_(test|live)_[A-Za-z0-9]+$/.test(sessionId)) {
     return Response.json({ error: 'session_id inválido' }, { status: 400, headers: cors });
   }
+
+  const clave = `session:${sessionId}`;
+  const yaProcesado = await leerProcesado(env, clave);
+  if (yaProcesado) {
+    return Response.json(
+      {
+        ok: true,
+        paid: true,
+        orderId: yaProcesado.order.orderId,
+        order: yaProcesado.order,
+        gls: yaProcesado.gls,
+      },
+      { headers: cors },
+    );
+  }
+
   const session = await retrieveStripeSession(sessionId, env.STRIPE_SECRET_KEY);
   if (!parseSessionPaymentStatus(session)) {
     return Response.json({ ok: true, paid: false }, { headers: cors });
   }
+
   const orderPayload = orderPayloadFromSession(session);
-  const ownerEmail = buildOwnerEmail(orderPayload, env.OWNER_EMAIL);
-  const customerEmail = buildCustomerEmail(orderPayload, orderPayload.email);
-  await Promise.all([
-    sendEmail(ownerEmail, env.RESEND_API_KEY),
-    sendEmail(customerEmail, env.RESEND_API_KEY),
-  ]);
+  const gls = await resolveGlsReturn(orderPayload, env);
+  await enviarEmails(orderPayload, gls, env);
+  await guardarProcesado(env, clave, {
+    gls,
+    order: orderPayload,
+    processedAt: new Date().toISOString(),
+  });
+
   return Response.json(
-    { ok: true, paid: true, orderId: orderPayload.orderId, order: orderPayload },
+    { ok: true, paid: true, orderId: orderPayload.orderId, order: orderPayload, gls },
     { headers: cors },
   );
 }
