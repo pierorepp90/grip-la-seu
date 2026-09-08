@@ -49,3 +49,16 @@ export function buildReturnOrderRequest(orderPayload, env) {
     },
   };
 }
+
+// `dropOffLocation` se devuelve crudo: todavía no hemos visto una respuesta real de producción,
+// así que no asumimos nombres de campo. Llega al frontend en la respuesta JSON para poder
+// pintarlo el día que conozcamos su forma, sin tocar el Worker.
+export function parseReturnOrderResponse(json) {
+  if (!json || !json.returnOrderId) {
+    throw new Error('GLS respondió sin returnOrderId');
+  }
+  return {
+    returnOrderId: json.returnOrderId,
+    dropOffLocation: json.dropOffLocations?.data?.[0] ?? null,
+  };
+}

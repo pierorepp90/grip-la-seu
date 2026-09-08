@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildReturnOrderRequest } from '../src/gls.js';
+import { buildReturnOrderRequest, parseReturnOrderResponse } from '../src/gls.js';
 
 const env = {
   GLS_API_BASE: 'https://api.gls-group.net/order-management/shop-returns/portal/v3',
@@ -76,4 +76,26 @@ test('buildReturnOrderRequest recorta espacios sobrantes', () => {
   );
   assert.equal(request.sender.personName, 'Ana Pérez');
   assert.equal(request.sender.address.street, 'Carrer Major');
+});
+
+test('parseReturnOrderResponse extrae el id y el primer punto de entrega', () => {
+  const result = parseReturnOrderResponse({
+    returnOrderId: 'RET-99',
+    dropOffLocations: { data: [{ id: 'PS-1' }, { id: 'PS-2' }] },
+  });
+  assert.equal(result.returnOrderId, 'RET-99');
+  assert.deepEqual(result.dropOffLocation, { id: 'PS-1' });
+});
+
+test('parseReturnOrderResponse devuelve null si no hay puntos de entrega', () => {
+  assert.equal(parseReturnOrderResponse({ returnOrderId: 'RET-99' }).dropOffLocation, null);
+  assert.equal(
+    parseReturnOrderResponse({ returnOrderId: 'RET-99', dropOffLocations: { data: [] } }).dropOffLocation,
+    null,
+  );
+});
+
+test('parseReturnOrderResponse lanza error si falta el returnOrderId', () => {
+  assert.throws(() => parseReturnOrderResponse({}));
+  assert.throws(() => parseReturnOrderResponse(null));
 });
