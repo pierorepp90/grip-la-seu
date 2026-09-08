@@ -105,11 +105,11 @@ etiqueta de devolución no lleva documentación aduanera, y Andorra está fuera 
 y del IVA europeo. Un envío desde Andorra sería exportación temporal para reparación, con
 reimportación a la vuelta.
 
-Se ha pedido confirmación por escrito a GLS junto con la solicitud de la API oficial, pero la
-expectativa es negativa. **Alternativa propuesta para clientes andorranos, pendiente de confirmar:**
-un aviso en el paso 2
-del tipo "¿Estás en Andorra? Escríbenos por WhatsApp", enlazando al WhatsApp que ya está en la
-cabecera. Sin selector de país nuevo ni lógica de entrega adicional.
+**Decisión del propietario (2026-09-08): Andorra queda descartada, no se pregunta a GLS.** Aunque
+existiera una vía, cada par cruzaría la aduana dos veces —salida para reparación y vuelta— por un
+servicio de 44€. El papeleo y el coste no lo justifican. No se añade ni aviso ni vía alternativa
+en la web para clientes andorranos; el selector de país queda en `ES` / `PT` y nadie debería
+reabrir esto sin que cambien las condiciones aduaneras.
 
 ## Enfoque: API con fallback manual
 
@@ -329,7 +329,7 @@ el panel de GLS.
 ## Fuera de alcance
 
 - Migrar al ShopReturnService API oficial de GLS (requiere gestión previa con GLS).
-- Activar Andorra como país de origen: no está disponible en el producto (ver "Andorra").
+- Andorra, en cualquier forma: descartada por aduanas (ver "Andorra").
 - El envío de vuelta (taller → cliente). El portal de devoluciones solo cubre el trayecto de ida.
 - Descargar y adjuntar el PDF de la etiqueta: innecesario, GLS lo envía con
   `options.confirmationMail`.
