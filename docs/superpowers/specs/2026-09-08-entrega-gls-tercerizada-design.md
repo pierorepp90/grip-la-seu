@@ -97,8 +97,19 @@ por defecto, así que `ca` se mapea a `es`.
 
 ### Andorra
 
-`activatedCountries` es `["ES","PT"]`. Andorra no está disponible pese a estar a 10 km de La Seu.
-Activarla es una gestión con GLS, fuera del alcance de este spec.
+`activatedCountries` es `["ES","PT"]`, y **esto no es una limitación de configuración del portal**:
+Andorra no figura en la lista de países del ShopReturnService de GLS. Los dos países no
+comunitarios que sí figuran —Reino Unido y Suiza— están marcados como "solución nacional", es
+decir, devoluciones dentro del propio país, no transfronterizas. El motivo es la aduana: una
+etiqueta de devolución no lleva documentación aduanera, y Andorra está fuera de la unión aduanera
+y del IVA europeo. Un envío desde Andorra sería exportación temporal para reparación, con
+reimportación a la vuelta.
+
+Se ha pedido confirmación por escrito a GLS junto con la solicitud de la API oficial, pero la
+expectativa es negativa. **Alternativa propuesta para clientes andorranos, pendiente de confirmar:**
+un aviso en el paso 2
+del tipo "¿Estás en Andorra? Escríbenos por WhatsApp", enlazando al WhatsApp que ya está en la
+cabecera. Sin selector de país nuevo ni lógica de entrega adicional.
 
 ## Enfoque: API con fallback manual
 
@@ -318,7 +329,7 @@ el panel de GLS.
 ## Fuera de alcance
 
 - Migrar al ShopReturnService API oficial de GLS (requiere gestión previa con GLS).
-- Activar Andorra como país de origen.
+- Activar Andorra como país de origen: no está disponible en el producto (ver "Andorra").
 - El envío de vuelta (taller → cliente). El portal de devoluciones solo cubre el trayecto de ida.
 - Descargar y adjuntar el PDF de la etiqueta: innecesario, GLS lo envía con
   `options.confirmationMail`.
