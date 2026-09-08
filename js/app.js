@@ -5,7 +5,7 @@ import { calculateLinePrice, minPrecioServicio, calcularTransporte } from './pri
 import { isNonEmpty, isValidPhone, isValidPostalCode, isValidEmail } from './validation.js';
 import { generateOrderId, buildOrderSummary } from './order.js';
 import { createCheckoutSession, notifyOrder } from './api.js';
-import { API_BASE_URL } from './config.js';
+import { API_BASE_URL, GLS_PORTAL_URL } from './config.js';
 
 document.addEventListener('alpine:init', () => {
   Alpine.store('i18n', {
@@ -214,6 +214,10 @@ document.addEventListener('alpine:init', () => {
         { etiqueta: 'Ciudad', valor: this.ciudad },
         { etiqueta: 'País', valor: this.pais },
       ];
+    },
+
+    get portalUrl() {
+      return this.gls?.portalUrl || GLS_PORTAL_URL;
     },
 
     async copiar(valor) {

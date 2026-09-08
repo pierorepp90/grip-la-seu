@@ -513,7 +513,6 @@ footer.site-footer {
   border-color: var(--color-amber);
 }
 
-.delivery-option-card,
 .payment-option-card {
   border: 1px solid var(--color-slate);
   border-radius: var(--radius);
@@ -522,14 +521,11 @@ footer.site-footer {
   cursor: pointer;
 }
 
-.delivery-option-card:hover,
 .payment-option-card:hover,
-.delivery-option-card:focus-visible,
 .payment-option-card:focus-visible {
   border-color: var(--color-amber);
 }
 
-.delivery-option-card.selected,
 .payment-option-card.selected {
   border-color: var(--color-amber);
   background: #fff7ea;
@@ -560,4 +556,49 @@ footer.site-footer {
 
 [x-cloak] {
   display: none !important;
+}
+
+.shipping-note {
+  font-size: 0.9rem;
+  color: var(--color-slate);
+  margin: -1rem 0 1.5rem;
+}
+
+.gls-result {
+  border-top: 1px solid var(--color-border-light);
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+}
+
+.gls-manual {
+  border: 1px solid var(--color-amber);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+
+.copy-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0;
+}
+
+.copy-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.copy-label {
+  flex: 0 0 40%;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  color: var(--color-slate);
+}
+
+.copy-value {
+  flex: 1;
+  font-weight: 600;
+  word-break: break-word;
 }
