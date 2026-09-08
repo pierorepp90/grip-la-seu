@@ -213,6 +213,42 @@ test('buildOwnerEmail y buildCustomerEmail escapan el trackId, que viene de la A
   assert(customerEmail.html.includes('&lt;script&gt;'));
 });
 
+test('buildOwnerEmail escapa la cantidad, que llega sin validar por /api/notify-order', () => {
+  const payload = {
+    ...orderPayload,
+    carrito: [
+      {
+        tipoCalzado: 'pie_de_gato',
+        servicio: 'resolado_completo',
+        material: null,
+        cantidad: '1<img src=x onerror=alert(1)>',
+        precioUnitario: 10,
+        precioSubtotal: 10,
+      },
+    ],
+  };
+  const email = buildOwnerEmail(payload, 'owner@example.com', glsOk);
+  assert(!email.html.includes('<img'));
+  assert(email.html.includes('&lt;img'));
+});
+
+test('buildOwnerEmail escapa la cantidad tambien en la linea reconstruida desde Stripe', () => {
+  const payload = {
+    ...orderPayload,
+    carrito: [
+      {
+        descripcion: 'resolado_completo (pie_de_gato)',
+        cantidad: '1<img src=x onerror=alert(1)>',
+        precioUnitario: 10,
+        precioSubtotal: 10,
+      },
+    ],
+  };
+  const email = buildOwnerEmail(payload, 'owner@example.com', glsOk);
+  assert(!email.html.includes('<img'));
+  assert(email.html.includes('&lt;img'));
+});
+
 test('buildOwnerEmail escapa el returnOrderId y el error que vienen de GLS', () => {
   const email = buildOwnerEmail(orderPayload, 'owner@example.com', {
     ok: false,

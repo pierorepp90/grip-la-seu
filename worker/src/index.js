@@ -42,15 +42,24 @@ async function resolveGlsReturn(orderPayload, env) {
 // tiene igualmente su etiqueta, que se la manda GLS directamente. Los fallos se registran y
 // se guardan en KV para que quede rastro de qué email no salió.
 async function enviarEmails(orderPayload, gls, env) {
-  const destinatarios = ['propietario', 'cliente'];
-  const resultados = await Promise.allSettled([
-    sendEmail(buildOwnerEmail(orderPayload, env.OWNER_EMAIL, gls), env.RESEND_API_KEY),
-    sendEmail(buildCustomerEmail(orderPayload, orderPayload.email, gls), env.RESEND_API_KEY),
-  ]);
+  // Los emails se CONSTRUYEN dentro de la promesa, no fuera. Si se construyen fuera, una
+  // excepcion sincrona en un builder (p.ej. una linea de carrito sin precioSubtotal) escapa
+  // de allSettled, sube al handler y devuelve un 500 con la devolucion GLS ya creada y KV ya
+  // marcado como procesado: el reintento corta por la rama cacheada y nadie recibe email nunca.
+  const envios = [
+    { quien: 'propietario', construir: () => buildOwnerEmail(orderPayload, env.OWNER_EMAIL, gls) },
+    { quien: 'cliente', construir: () => buildCustomerEmail(orderPayload, orderPayload.email, gls) },
+  ];
+
+  const resultados = await Promise.allSettled(
+    envios.map(({ construir }) =>
+      Promise.resolve().then(() => sendEmail(construir(), env.RESEND_API_KEY)),
+    ),
+  );
 
   const fallidos = resultados
     .map((resultado, indice) =>
-      resultado.status === 'rejected' ? `${destinatarios[indice]}: ${resultado.reason?.message}` : null,
+      resultado.status === 'rejected' ? `${envios[indice].quien}: ${resultado.reason?.message}` : null,
     )
     .filter(Boolean);
 

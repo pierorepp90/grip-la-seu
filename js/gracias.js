@@ -84,8 +84,9 @@ function renderGls(gls) {
   const contenedor = document.getElementById('gracias-gls');
   if (!contenedor) return;
   contenedor.replaceChildren();
-  contenedor.classList.remove('gls-manual');
+  contenedor.classList.remove('gls-result', 'gls-manual');
   if (!gls) return;
+  contenedor.classList.add('gls-result');
 
   if (gls.ok) {
     const aviso = document.createElement('p');

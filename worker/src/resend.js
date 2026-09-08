@@ -96,8 +96,10 @@ function glsHtmlCliente(orderPayload, gls) {
   const { orderId, nombre, email, direccion } = orderPayload;
   return `
     <h3>Crea tu etiqueta de envío</h3>
-    <p>No hemos podido generar tu etiqueta automáticamente. Créala tú en el portal de GLS —tarda
-    menos de un minuto— con estos datos:</p>
+    <p><strong>Antes de nada:</strong> revisa si te ha llegado un email de GLS con tu etiqueta. Si
+    lo tienes, ignora el resto de este mensaje — la etiqueta ya existe y no hace falta crear otra.</p>
+    <p>Si no te ha llegado, créala tú en el portal de GLS —tarda menos de un minuto— con estos
+    datos:</p>
     <ul>
       <li>Número de pedido: <strong>${escapeHtml(orderId)}</strong></li>
       <li>Motivo de devolución: Sin motivo específico</li>
@@ -113,13 +115,16 @@ function glsHtmlCliente(orderPayload, gls) {
   `;
 }
 
+// `cantidad` tambien se escapa: el formulario solo produce enteros, pero /api/notify-order no
+// tiene autenticacion y acepta cualquier cuerpo, asi que aqui no es un numero de confianza.
 function formatearLineaCarrito(linea) {
   const subtotal = linea.precioSubtotal.toFixed(2);
+  const cantidad = escapeHtml(linea.cantidad);
   if (linea.descripcion) {
-    return `${escapeHtml(linea.descripcion)} ×${linea.cantidad} — ${subtotal}€`;
+    return `${escapeHtml(linea.descripcion)} ×${cantidad} — ${subtotal}€`;
   }
   const variante = linea.material ? ` (${escapeHtml(linea.material)})` : '';
-  return `${escapeHtml(linea.tipoCalzado)} · ${escapeHtml(linea.servicio)}${variante} ×${linea.cantidad} — ${subtotal}€`;
+  return `${escapeHtml(linea.tipoCalzado)} · ${escapeHtml(linea.servicio)}${variante} ×${cantidad} — ${subtotal}€`;
 }
 
 function lineasCarritoHtml(orderPayload) {
