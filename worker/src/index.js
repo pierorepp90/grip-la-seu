@@ -38,11 +38,26 @@ async function resolveGlsReturn(orderPayload, env) {
   }
 }
 
+// Tampoco lanza. Un pedido ya cobrado no se puede tumbar porque Resend falle: el cliente
+// tiene igualmente su etiqueta, que se la manda GLS directamente. Los fallos se registran y
+// se guardan en KV para que quede rastro de qué email no salió.
 async function enviarEmails(orderPayload, gls, env) {
-  await Promise.all([
+  const destinatarios = ['propietario', 'cliente'];
+  const resultados = await Promise.allSettled([
     sendEmail(buildOwnerEmail(orderPayload, env.OWNER_EMAIL, gls), env.RESEND_API_KEY),
     sendEmail(buildCustomerEmail(orderPayload, orderPayload.email, gls), env.RESEND_API_KEY),
   ]);
+
+  const fallidos = resultados
+    .map((resultado, indice) =>
+      resultado.status === 'rejected' ? `${destinatarios[indice]}: ${resultado.reason?.message}` : null,
+    )
+    .filter(Boolean);
+
+  if (fallidos.length > 0) {
+    console.error(`Emails fallidos del pedido ${orderPayload.orderId}`, fallidos);
+  }
+  return fallidos;
 }
 
 async function handleCreateCheckoutSession(request, env, cors) {
@@ -62,8 +77,18 @@ async function handleNotifyOrder(request, env, cors) {
   }
 
   const gls = await resolveGlsReturn(orderPayload, env);
-  await enviarEmails(orderPayload, gls, env);
+  // Se guarda ANTES de enviar los emails, no después: en cuanto existe una devolución real
+  // en GLS hay que impedir que un reintento cree una segunda. Si guardásemos al final, un
+  // fallo de Resend dejaría KV vacío y la recarga del cliente duplicaría la devolución.
   await guardarProcesado(env, clave, { gls, processedAt: new Date().toISOString() });
+  const emailsFallidos = await enviarEmails(orderPayload, gls, env);
+  if (emailsFallidos.length > 0) {
+    await guardarProcesado(env, clave, {
+      gls,
+      emailsFallidos,
+      processedAt: new Date().toISOString(),
+    });
+  }
 
   return Response.json({ ok: true, gls }, { headers: cors });
 }
@@ -96,12 +121,22 @@ async function handleConfirmPayment(url, env, cors) {
 
   const orderPayload = orderPayloadFromSession(session);
   const gls = await resolveGlsReturn(orderPayload, env);
-  await enviarEmails(orderPayload, gls, env);
+  // Igual que en handleNotifyOrder: guardar antes de los emails. Aquí importa todavía más,
+  // porque el pedido ya está cobrado y recargar gracias.html es la reacción natural a un error.
   await guardarProcesado(env, clave, {
     gls,
     order: orderPayload,
     processedAt: new Date().toISOString(),
   });
+  const emailsFallidos = await enviarEmails(orderPayload, gls, env);
+  if (emailsFallidos.length > 0) {
+    await guardarProcesado(env, clave, {
+      gls,
+      order: orderPayload,
+      emailsFallidos,
+      processedAt: new Date().toISOString(),
+    });
+  }
 
   return Response.json(
     { ok: true, paid: true, orderId: orderPayload.orderId, order: orderPayload, gls },
