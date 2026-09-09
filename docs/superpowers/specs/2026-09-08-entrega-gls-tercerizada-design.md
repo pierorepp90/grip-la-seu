@@ -333,3 +333,206 @@ el panel de GLS.
 - El envío de vuelta (taller → cliente). El portal de devoluciones solo cubre el trayecto de ida.
 - Descargar y adjuntar el PDF de la etiqueta: innecesario, GLS lo envía con
   `options.confirmationMail`.
+
+---
+
+## Qué cambió en la implementación
+
+**Añadido el 2026-09-09, después de implementar y de pasar el primer pedido real por producción.**
+
+Todo lo de arriba se escribió el 8 de septiembre, antes de tocar código y antes de que ninguna
+llamada real llegara a GLS. Las decisiones que recoge —tercerizar a GLS, la API del portal con
+fallback manual, descartar Andorra, el umbral de envío gratis— siguen siendo las buenas y el
+razonamiento que las sostiene sigue valiendo. Lo que ya no describe es el código.
+
+Esta sección dice **qué se hizo distinto y por qué**, para que quien lea el documento sepa de qué
+partes desconfiar. Donde las dos se contradigan, manda esta. La cabecera sigue diciendo
+"pendiente de plan de implementación" porque eso era el 8 de septiembre; el plan se escribió y
+todo lo que sigue está desplegado.
+
+Buena parte de estos cambios no son mejoras de diseño: son cosas que **solo se supieron al llamar
+de verdad a la API y al ver un pedido real de un cliente real**. Van marcadas como tales, porque
+son las que más le van a servir a quien venga después.
+
+### Lo que enseñó la primera llamada real
+
+**`trackId`, no `returnOrderId`.** El documento dice que la pantalla de éxito y el email enseñan el
+`returnOrderId`. La respuesta real trae además `references.trackId` (`"Z79MB8U2"`): el código corto
+con el que una persona sigue su envío. El `returnOrderId` es un UUID que solo sirve para hablar con
+la API, y enseñárselo al cliente habría sido darle algo que no puede usar en ningún sitio.
+`parseReturnOrderResponse` devuelve los dos:
+
+- al **cliente** (pantalla de éxito y email) se le enseña `trackId`;
+- al **propietario** se le enseñan los dos —`Referencia: Z79MB8U2 (id b6e39dbf-…)`— porque el UUID
+  es lo que necesita para gestionar o anular la devolución desde el panel de GLS;
+- si GLS dejara de mandar `references`, `trackId` cae al UUID.
+
+**Hay puntos de entrega que no admiten devoluciones.** El documento da por hecho que el punto que
+asigna GLS es un punto donde se puede dejar el paquete. No siempre. A un cliente de Castelldefels
+se le asignó `GLS Locker 24/7 MOEVE CASTELLDEFELS`, con `parcelHandlingRestriction`
+`{ offersReturnDropOff: 'N', offersPrepaidParcelDropOff: 'N' }`. Le estábamos diciendo que dejara
+el paquete en un sitio que se lo iba a rechazar. El propietario confirma que en España los lockers
+de GLS solo recogen, nunca admiten devoluciones.
+
+El punto se filtra por **capacidades y no por `type`**: `type` es descriptivo y mañana puede
+aparecer un punto que no sea locker y tampoco acepte devoluciones. Nuestra etiqueta es una
+devolución ya prepagada, así que hacen falta las dos capacidades con la `'Y'` literal; si el campo
+falta, el punto se descarta igual. De un punto rechazado no se pinta ni un dato —ni el nombre—,
+solo un aviso y el enlace al buscador público de GLS, que se pinta siempre pase lo que pase.
+
+**Un punto abierto 24/7 llega partido en dos tramos.** GLS lo expresa como `00:00–14:00` y
+`14:00–23:59` por día: pintado literalmente son seis líneas casi idénticas de ruido. Un día cuyos
+tramos cubren el día entero se colapsa a "24 h" traducido. El filtro de arriba deja fuera casi
+todos los lockers, pero una tienda puede declarar esta misma forma.
+
+**El pago con tarjeta nunca había funcionado.** No es de este diseño, pero salió a la luz
+validándolo: `retrieveStripeSession` pedía la sesión con `line_items[limit]=100`, un parámetro que
+el endpoint de recuperación no acepta, y Stripe respondía 400. Todo pago con tarjeta fallaba al
+volver de Stripe; nadie lo había visto porque nadie había completado uno. Además, `gracias.js` daba
+el mismo mensaje cuando el pago no se había completado y cuando la comprobación fallaba: a alguien
+que **sí** había pagado se le invitaba a pagar otra vez.
+
+**El recibo estaba lleno de nombres de variable.** Un pedido real enseñó al cliente
+`resolado_completo (pie_de_gato) (vibram_xs_grip2) ×1 — 44.00€`, y no solo en la página de gracias:
+`buildCheckoutSessionParams` lo montaba igual como nombre del producto en la propia pantalla de
+pago de Stripe, que es lo que el cliente lee mientras teclea la tarjeta. De ahí sale
+`worker/src/catalogo.js`, que el documento no menciona (ver abajo).
+
+### Deduplicación en KV: nada de esto quedó como está escrito
+
+El apartado "Deduplicación con Workers KV" es la parte más desfasada del documento. Sigue siendo
+verdad el motivo —un F5 crearía una segunda devolución GLS de verdad, con su etiqueta y su coste—,
+pero ni las claves, ni el valor, ni los TTL son los que dice.
+
+| El documento decía | Lo que hay |
+|---|---|
+| `session:<sessionId>` en `confirm-payment` y `order:<orderId>` en `notify-order`, separadas | Una sola clave, `order:<orderId>`, para las dos rutas de pago |
+| Valor `{ returnOrderId, dropOffLocation, processedAt }` | `{ gls, order, processedAt }` |
+| `expirationTtl` de 90 días, igual para todo | Tres vidas según lo que se guarde |
+| — | Marca de "en curso" y clave `emails:<orderId>` aparte |
+
+**Una clave para las dos rutas.** El `orderId` lo genera el navegador una vez por pedido y
+sobrevive a las dos rutas: en bizum viaja en el cuerpo, en tarjeta va y vuelve en
+`metadata[order_id]` de Stripe. Con claves separadas, "Pagar con tarjeta" → atrás → confirmar por
+bizum eran **dos devoluciones facturables del mismo pedido**. Por eso `/api/confirm-payment` llama
+ahora a Stripe **antes** que a KV: el `orderId` solo se conoce después de recuperar la sesión. Se
+sigue leyendo también la clave `session:…` que escribía la versión anterior, porque en KV quedan
+hasta 90 días de pedidos guardados así y no leerlos duplicaría su devolución al recargar.
+
+**Tres vidas, no una.** Guardar los fallos tan a largo plazo como los éxitos clavaba el pedido en
+el modo manual durante 90 días aunque el problema —una clave caducada, un 429— se arreglara diez
+minutos después:
+
+- **90 días** un éxito, o un fallo *ambiguo*: timeout, abort, corte de red, 5xx, o un 2xx sin
+  `returnOrderId`. GLS pudo crear la devolución y no llegar a contárnoslo, y reintentar eso es
+  exactamente como un cliente acaba con dos etiquetas.
+- **10 minutos** un fallo *definitivo*: un 4xx, o una petición que ni se pudo construir. Ahí GLS
+  contestó antes de hacer nada y no hay nada que duplicar.
+- **60 segundos** la marca de "en curso" (el mínimo que admite KV).
+
+La clasificación vive en `clasificarFalloGls` y mira `error.httpStatus`, que `gls.js` cuelga del
+error al lanzarlo; sacar el código del texto del mensaje a base de regex se rompe la primera vez
+que alguien lo retoca.
+
+**La marca de "en curso" y el estado que el documento no contempla.** La ventana de deduplicación
+era la llamada entera a GLS —hasta diez segundos, justo mientras la pantalla dice "Comprobando el
+pago…"— y dos peticiones simultáneas fallaban las dos la lectura y creaban dos devoluciones. Ahora
+se escribe `{ enCurso: true, startedAt }` **antes** de llamar a GLS, y la segunda petición la ve y
+responde `{ enCurso: true }` —con el pago confirmado y el pedido, no un error—. KV no tiene
+compare-and-set: esto estrecha la carrera a milisegundos, no la cierra.
+
+Eso obligó a un tercer estado en la pantalla de éxito que el documento no prevé: ni modo A ni modo
+B, sino "tu etiqueta se está preparando", con el recibo pintado entero. **No se pinta el modo B**:
+pedirle a alguien que cree a mano una etiqueta que ya viene sola es justo como se acaba pagando dos
+veces. El navegador sondea (`reintentarMientrasEnCurso` en `js/api.js`, 10 intentos cada 3 s); la
+ventana total tiene que ser **menor** que el TTL de la marca, o la última petición ya no la vería y
+arrancaría su propia llamada a GLS. Hay un test que vigila esa desigualdad.
+
+**Emails después de responder.** El documento los pone en línea. Van en `ctx.waitUntil`: son
+best-effort desde siempre (`allSettled`, fallos registrados), y hacer esperar al cliente dos
+llamadas a Resend con el pedido ya cobrado solo alarga la pantalla de espera y con ella la ventana
+en la que le da a F5. Se construyen **dentro** de la promesa: construidos fuera, una excepción
+síncrona en un builder subía al handler y devolvía un 500 con la devolución ya creada y KV ya
+marcado, así que el reintento cortaba por la rama cacheada y nadie recibía email nunca.
+
+**`emails:<orderId>`.** Los emails fallidos se apuntan además en su propia clave con vida de 90
+días. En el registro del pedido siguen estando, pero ese registro caduca en diez minutos cuando el
+fallo de GLS es definitivo, y que un email no haya salido es la única señal que le queda al
+propietario: no puede irse con él.
+
+### El punto de entrega se pinta, y desde un solo módulo
+
+El documento pasa `dropOffLocation` crudo y deja a cada sitio decidir. En la práctica hacían falta
+tres cosas iguales en tres sitios —el modal de `index.html`, `js/gracias.js` y el email del
+Worker—: formatear el punto, decidir si admite devoluciones y colapsar los días de 24 h. Eso es
+`js/punto-gls.js`, con `resolverPunto()` como única decisión de qué pintar y tres respuestas
+posibles: el punto, el aviso de que no admite devoluciones, o nada.
+
+El módulo es **puro a propósito** —ni DOM, ni `window`, ni idiomas; la etiqueta de "24 h" entra
+como argumento— porque desde el 2026-09-09 lo importa también el Worker. Durante un tiempo
+`worker/src/resend.js` mantuvo una copia a mano, con la excusa de que `worker/` se despliega solo y
+"no puede importar de `js/`". **Esa excusa era falsa y nadie la había comprobado**: esbuild sigue
+los imports relativos sin mirar fronteras de paquete. Verificado con `wrangler deploy --dry-run`,
+cuyo bundle trae el módulo una sola vez. Lo que el Worker sí conserva es lo suyo: los nombres de
+día en castellano y el HTML escapado del email.
+
+### El paso 2 no es el que describe la tabla
+
+La tabla de campos sigue siendo correcta, pero el documento resume la validación en
+"`canProceedStep2` se reescribe sobre estos campos" y eso se quedó corto. Toda la respuesta a un
+dato mal escrito era el botón "Siguiente" apagado: quien ponía el teléfono en un formato que no
+aceptamos no tenía forma de saber cuál de los siete campos estaba mal, y se iba. Además, los
+navegadores sacan los botones desactivados del orden de tabulación, así que con teclado o lector de
+pantalla no había nada que pulsar (WCAG 3.3.1).
+
+La validación vive ahora en `js/campos-paso2.js`, un único sitio donde cada campo declara su
+validador, el id de su input y la clave del mensaje. De esa lista salen tanto si se puede avanzar
+como el mensaje que se ve debajo de cada campo, así que no pueden discrepar. El paso 2 es un
+`<form>` (Enter hace lo mismo que "Siguiente"), "Siguiente" ya no se desactiva nunca, y cambiar de
+país recalcula el teléfono y el CP, que pueden dejar de ser válidos.
+
+Las reglas de `js/validation.js` no cambiaron **salvo una**: el 2026-09-09 el patrón portugués pasó
+de `9\d{8}` a `[29]\d{8}`. Donde el documento dice "`PT` acepta 9 dígitos empezando por 9" se
+equivocaba: eso son solo los móviles. Los fijos portugueses también tienen nueve cifras pero
+empiezan por 2 —21x Lisboa, 22x Oporto, de 23x a 29x el resto—, así que un cliente portugués con
+fijo no podía terminar el formulario.
+
+### El recibo y `worker/src/catalogo.js`
+
+Nada de esto está en el documento. `buildOrderSummary` no devuelve cadenas planas sino **secciones
+de filas etiqueta/valor**, y recibe el idioma activo: los tres sitios que pintan el pedido
+necesitan las dos columnas por separado para poder maquetarlas, y el email además las necesita en
+una tabla con estilos en línea para que Gmail y Outlook las respeten.
+
+- La referencia de la devolución GLS **no** sale del recibo, al contrario de lo que dice el
+  documento: se pinta pegada al aviso de la etiqueta y al punto de entrega, que es donde el cliente
+  la busca. Cada referencia aparece una sola vez.
+- `worker/src/catalogo.js` traduce los identificadores del catálogo a castellano para el Worker,
+  que los usa en el nombre del producto en Stripe y en los emails. Está duplicado del equivalente
+  traducido de `js/order.js`, pero por un motivo distinto al que se creía: no es que no se pueda
+  importar (ver arriba), es que los emails y la pantalla de Stripe son solo en castellano por
+  diseño y lo que habría que compartir aquí no es lógica, es diccionario.
+- Ninguno de los dos traduce a ciegas: un identificador que no esté en el diccionario se humaniza
+  en vez de pintar `service_lo_que_sea_title` en la cara del cliente. `/api/notify-order` no está
+  autenticado y acepta cualquier cuerpo.
+- `direccionTexto(direccion)` nunca llegó a existir; el email monta la dirección desglosada dentro
+  de la sección "Entrega" del recibo.
+- En el modo B, `gracias.html` daba solo el enlace al portal mientras el modal de `index.html` daba
+  el enlace **y** los nueve datos con su botón de copiar: justo al revés de lo que debería, porque
+  el de la tarjeta ya ha pagado. La lista sale ahora de `buildDatosPortal()` y la usan los dos. Sus
+  etiquetas van en castellano a propósito: nombran los campos del formulario de GLS.
+- El motivo de devolución ya no se escribe a mano en ningún sitio: lo elige el Worker
+  (`GLS_RETURN_REASON`) y viaja en `gls.returnReason`. Antes, cambiar la variable dejaba al cliente
+  eligiendo otra opción del desplegable sin que nadie se enterara.
+
+### Lo que sigue valiendo
+
+- El hallazgo del portal —que no admite autocompletado por URL, y por qué— y la decisión de llamar
+  a su API con fallback manual.
+- El riesgo asumido: sigue siendo la API interna del portal, con credenciales de su frontend
+  público, y sigue pendiente el ShopReturnService oficial.
+- Los límites de campo, el mapeo de idiomas con `ca → es` y el cuerpo de la petición.
+- Andorra: descartada por aduanas, y nadie debería reabrirlo sin que cambien las condiciones.
+- Los precios, `calcularTransporte` y el umbral comparado contra el subtotal de servicios.
+- La regla dura: **un fallo de GLS nunca tumba el pedido**. Es la única línea del documento que
+  ninguna de estas revisiones ha tocado.
