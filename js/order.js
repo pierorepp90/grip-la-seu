@@ -1,4 +1,5 @@
 import { t } from './i18n.js';
+import { GLS_MOTIVO_DEVOLUCION } from './config.js';
 
 export function generateOrderId(now = new Date(), randomFn = Math.random) {
   const datePart = now.toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
@@ -153,4 +154,36 @@ export function buildOrderSummary(orderPayload, lang) {
       seccionPago(orderPayload, lang),
     ],
   };
+}
+
+// Modo B: GLS no ha podido crear la devolución y el cliente tiene que crearla él en el portal.
+// Estas son las filas que copia campo a campo en el formulario del portal.
+//
+// Las etiquetas NO se traducen, y por eso esta función no recibe lang: nombran los campos del
+// formulario de GLS, que está en castellano. Traducirlas mandaría a un cliente inglés a buscar
+// "Postcode" en una página que dice "Código postal". El texto que rodea a la lista
+// (gls_manual_title, gls_manual_desc, gls_manual_link, btn_copiar/btn_copiado) sí está traducido.
+//
+// El motivo lo elige el Worker (GLS_RETURN_REASON) y viaja en gls.returnReason: escribirlo
+// aquí a mano haría que cambiar la variable dejara al cliente eligiendo otra opción del
+// desplegable del portal. Si la respuesta no lo trae, se cae al respaldo de js/config.js.
+//
+// Los campos vacíos no se pintan: un botón "Copiar" que copia una cadena vacía y luego dice
+// "Copiado" miente, y la fila no le da al cliente nada que pegar.
+export function buildDatosPortal(orderPayload, motivoDevolucion) {
+  const { orderId, nombre, email } = orderPayload ?? {};
+  const direccion = orderPayload?.direccion ?? {};
+  return [
+    ['Número de pedido', orderId],
+    ['Motivo de devolución', motivoDevolucion || GLS_MOTIVO_DEVOLUCION],
+    ['Nombre', nombre],
+    ['Correo electrónico', email],
+    ['Calle', direccion.calle],
+    ['Número', direccion.numero],
+    ['Código postal', direccion.codigoPostal],
+    ['Ciudad', direccion.ciudad],
+    ['País', direccion.pais],
+  ]
+    .map(([etiqueta, valor]) => ({ etiqueta, valor: String(valor ?? '').trim() }))
+    .filter((dato) => dato.valor !== '');
 }

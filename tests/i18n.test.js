@@ -59,3 +59,30 @@ test('todas las claves $t() del HTML existen en los cuatro idiomas', async () =>
   }
   assert.ok(comprobadas > 0, 'no se ha encontrado ninguna clave $t() literal');
 });
+
+// Y lo mismo para lo que se pinta sin plantilla: gracias.html no lleva ni una sola llamada a
+// $t(), las hace js/gracias.js a mano. Sus claves no las ve el barrido de arriba, así que un
+// texto que solo salga ahí —el botón de copiar, sin ir más lejos— se quedaba sin comprobar.
+test('todas las claves literales de t() en js/ existen en los cuatro idiomas', async () => {
+  const carpeta = new URL('../js/', import.meta.url);
+  const ficheros = (await readdir(carpeta)).filter((nombre) => nombre.endsWith('.js'));
+  assert.ok(ficheros.length > 0, 'no se ha encontrado ningún módulo que revisar');
+
+  let comprobadas = 0;
+  for (const fichero of ficheros) {
+    const codigo = await readFile(new URL(fichero, carpeta), 'utf8');
+    // Las dos formas de pasar el idioma que se usan en js/, y solo con clave literal:
+    // t(lang, `dia_${dia.weekday}`) se arma en tiempo de ejecución.
+    const llamadas = /\bt\(\s*(?:lang|Alpine\.store\('i18n'\)\.lang)\s*,\s*'([^']+)'/g;
+    for (const [, clave] of codigo.matchAll(llamadas)) {
+      comprobadas += 1;
+      for (const lang of LANGS) {
+        assert.ok(
+          Object.hasOwn(DICT[lang], clave),
+          `js/${fichero} usa t(…, '${clave}') y falta la traducción en ${lang}`,
+        );
+      }
+    }
+  }
+  assert.ok(comprobadas > 0, 'no se ha encontrado ninguna clave literal de t() en js/');
+});

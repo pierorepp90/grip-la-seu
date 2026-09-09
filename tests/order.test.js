@@ -6,6 +6,7 @@ import {
   describirLineaCarrito,
   formatearLineaCarrito,
   buildOrderSummary,
+  buildDatosPortal,
 } from '../js/order.js';
 
 test('generateOrderId incluye fecha y es determinista con inyección de reloj/random', () => {
@@ -234,4 +235,70 @@ test('buildOrderSummary no deja ningún identificador interno en el recibo', () 
       assert.doesNotMatch(fila.valor, /_/, `valor crudo: ${fila.valor}`);
     }
   }
+});
+
+// --- Datos para el portal de GLS (modo B) --------------------------------------------------
+
+function motivoDe(datos) {
+  return datos.find((dato) => dato.etiqueta === 'Motivo de devolución')?.valor;
+}
+
+// Las etiquetas nombran los campos del formulario del portal de GLS, que está en castellano,
+// y por eso no llevan idioma: buildDatosPortal no recibe lang.
+test('buildDatosPortal devuelve los campos del formulario del portal, en su orden', () => {
+  assert.deepEqual(buildDatosPortal(orderPayload, 'Sin motivo específico'), [
+    { etiqueta: 'Número de pedido', valor: 'GLS-TEST-0001' },
+    { etiqueta: 'Motivo de devolución', valor: 'Sin motivo específico' },
+    { etiqueta: 'Nombre', valor: 'Ana Pérez' },
+    { etiqueta: 'Correo electrónico', valor: 'ana@example.com' },
+    { etiqueta: 'Calle', valor: 'Carrer Major' },
+    { etiqueta: 'Número', valor: '12' },
+    { etiqueta: 'Código postal', valor: '25700' },
+    { etiqueta: 'Ciudad', valor: "La Seu d'Urgell" },
+    { etiqueta: 'País', valor: 'ES' },
+  ]);
+});
+
+test('buildDatosPortal usa el motivo que manda el Worker, no una copia suya', () => {
+  assert.equal(motivoDe(buildDatosPortal(orderPayload, 'Producto defectuoso')), 'Producto defectuoso');
+});
+
+test('buildDatosPortal cae al motivo por defecto si el Worker no manda ninguno', () => {
+  // Página cacheada o pedido guardado en KV antes de que el Worker empezara a mandarlo.
+  assert.equal(motivoDe(buildDatosPortal(orderPayload)), 'Sin motivo específico');
+  assert.equal(motivoDe(buildDatosPortal(orderPayload, '')), 'Sin motivo específico');
+});
+
+test('buildDatosPortal omite los campos vacíos y recorta los espacios sobrantes', () => {
+  // Un botón "Copiar" que copia una cadena vacía y luego dice "Copiado" miente; y la fila
+  // tampoco le da al cliente ningún dato que pegar en el portal.
+  const datos = buildDatosPortal(
+    {
+      ...orderPayload,
+      nombre: '  Ana Pérez  ',
+      email: '',
+      direccion: { ...direccion, numero: '   ' },
+    },
+    'Sin motivo específico',
+  );
+  assert.deepEqual(
+    datos.map((dato) => dato.etiqueta),
+    [
+      'Número de pedido',
+      'Motivo de devolución',
+      'Nombre',
+      'Calle',
+      'Código postal',
+      'Ciudad',
+      'País',
+    ],
+  );
+  assert.equal(datos.find((dato) => dato.etiqueta === 'Nombre').valor, 'Ana Pérez');
+});
+
+test('buildDatosPortal sobrevive a un pedido sin dirección', () => {
+  assert.deepEqual(buildDatosPortal({ orderId: 'GLS-TEST-0002' }, 'Sin motivo específico'), [
+    { etiqueta: 'Número de pedido', valor: 'GLS-TEST-0002' },
+    { etiqueta: 'Motivo de devolución', valor: 'Sin motivo específico' },
+  ]);
 });

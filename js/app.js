@@ -9,10 +9,11 @@ import {
   esPaso2Valido,
   primerCampoInvalido,
 } from './campos-paso2.js';
-import { generateOrderId, buildOrderSummary } from './order.js';
+import { generateOrderId, buildOrderSummary, buildDatosPortal } from './order.js';
 import { createCheckoutSession, notifyOrder } from './api.js';
 import { API_BASE_URL, GLS_PORTAL_URL, GLS_BUSCADOR_URL } from './config.js';
 import { resolverPunto } from './punto-gls.js';
+import { copiarAlPortapapeles, MS_CONFIRMACION_COPIADO } from './portapapeles.js';
 
 document.addEventListener('alpine:init', () => {
   Alpine.store('i18n', {
@@ -264,18 +265,25 @@ document.addEventListener('alpine:init', () => {
       };
     },
 
+    // La lista la arma js/order.js, que es de donde la saca también gracias.html: el cliente
+    // que ya ha pagado necesita exactamente los mismos datos que el que aún no. Aquí solo se
+    // adapta el estado suelto del formulario a la forma de pedido que espera el helper.
     get datosParaPortal() {
-      return [
-        { etiqueta: 'Número de pedido', valor: this.orderId },
-        { etiqueta: 'Motivo de devolución', valor: 'Sin motivo específico' },
-        { etiqueta: 'Nombre', valor: this.nombre },
-        { etiqueta: 'Correo electrónico', valor: this.email },
-        { etiqueta: 'Calle', valor: this.calle },
-        { etiqueta: 'Número', valor: this.numero },
-        { etiqueta: 'Código postal', valor: this.codigoPostal },
-        { etiqueta: 'Ciudad', valor: this.ciudad },
-        { etiqueta: 'País', valor: this.pais },
-      ];
+      return buildDatosPortal(
+        {
+          orderId: this.orderId,
+          nombre: this.nombre,
+          email: this.email,
+          direccion: {
+            calle: this.calle,
+            numero: this.numero,
+            codigoPostal: this.codigoPostal,
+            ciudad: this.ciudad,
+            pais: this.pais,
+          },
+        },
+        this.gls?.returnReason,
+      );
     },
 
     get portalUrl() {
@@ -303,11 +311,13 @@ document.addEventListener('alpine:init', () => {
     },
 
     async copiar(valor) {
-      await navigator.clipboard.writeText(valor);
+      // Solo se canta "Copiado" si se copió de verdad; si el navegador no deja, el botón se
+      // queda como estaba y el valor sigue en pantalla para seleccionarlo a mano.
+      if (!(await copiarAlPortapapeles(valor))) return;
       this.copiado = valor;
       setTimeout(() => {
         if (this.copiado === valor) this.copiado = '';
-      }, 2000);
+      }, MS_CONFIRMACION_COPIADO);
     },
 
     async confirmarPedido() {

@@ -34,7 +34,19 @@ async function resolveGlsReturn(orderPayload, env) {
     return { ok: true, ...parseReturnOrderResponse(json) };
   } catch (error) {
     console.error('No se pudo crear la devolución GLS', error);
-    return { ok: false, error: error.message, portalUrl: env.GLS_PORTAL_URL };
+    // El motivo viaja con la respuesta —igual que portalUrl— para que la lista de datos que el
+    // cliente tiene que copiar en el portal (el modal, gracias.html y el email) nombre siempre
+    // la misma opción del desplegable que habríamos elegido nosotros. Escrito a mano en cada
+    // sitio, cambiar GLS_RETURN_REASON los dejaba atrás en silencio.
+    //
+    // Es un campo añadido, no un cambio de forma: quien no lo reciba (una página cacheada, un
+    // pedido guardado en KV antes de esto) cae a su respaldo y sigue viendo la lista entera.
+    return {
+      ok: false,
+      error: error.message,
+      portalUrl: env.GLS_PORTAL_URL,
+      returnReason: env.GLS_RETURN_REASON,
+    };
   }
 }
 

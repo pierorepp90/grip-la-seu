@@ -1,9 +1,10 @@
 // js/gracias.js
 import { t } from './i18n.js';
-import { buildOrderSummary } from './order.js';
+import { buildOrderSummary, buildDatosPortal } from './order.js';
 import { confirmPayment } from './api.js';
 import { API_BASE_URL, GLS_PORTAL_URL, GLS_BUSCADOR_URL } from './config.js';
 import { resolverPunto } from './punto-gls.js';
+import { copiarAlPortapapeles, MS_CONFIRMACION_COPIADO } from './portapapeles.js';
 
 const lang = localStorage.getItem('lang') || 'ca';
 const titleEl = document.getElementById('gracias-title');
@@ -46,11 +47,14 @@ function crearSeccion(seccion) {
 
 // La referencia del pedido es la primera fila del recibo y no se repite como titular; la de la
 // devolución GLS la pinta renderGls(), pegada al aviso de la etiqueta.
-function render(titleKey, messageKey, secciones = [], gls = null) {
+//
+// El pedido llega hasta renderGls() porque en modo B hay que pintar los datos que el cliente
+// tiene que copiar en el portal, y salen de ahí.
+function render(titleKey, messageKey, secciones = [], gls = null, order = null) {
   titleEl.textContent = t(lang, titleKey);
   messageEl.textContent = t(lang, messageKey);
   summaryEl.replaceChildren(...secciones.map(crearSeccion));
-  renderGls(gls);
+  renderGls(gls, order);
 }
 
 function crearBloquePunto(punto) {
@@ -117,7 +121,53 @@ function crearEnlaceBuscador() {
   return enlace;
 }
 
-function renderGls(gls) {
+// El mismo botón que el modal de index.html: dice "Copiado" y vuelve solo a los dos segundos,
+// y solo lo dice si se ha copiado de verdad.
+function crearBotonCopiar(valor) {
+  const boton = document.createElement('button');
+  boton.type = 'button';
+  boton.className = 'btn btn-secondary';
+  boton.textContent = t(lang, 'btn_copiar');
+
+  let temporizador = null;
+  boton.addEventListener('click', async () => {
+    if (!(await copiarAlPortapapeles(valor))) return;
+    boton.textContent = t(lang, 'btn_copiado');
+    clearTimeout(temporizador);
+    temporizador = setTimeout(() => {
+      boton.textContent = t(lang, 'btn_copiar');
+    }, MS_CONFIRMACION_COPIADO);
+  });
+
+  return boton;
+}
+
+// La lista de datos del portal, la misma que pinta el modal de index.html y con las mismas
+// clases. Las etiquetas van en castellano a propósito: nombran los campos del formulario de
+// GLS (ver js/order.js).
+function crearListaDatos(datos) {
+  const lista = document.createElement('ul');
+  lista.className = 'copy-list';
+
+  for (const dato of datos) {
+    const li = document.createElement('li');
+
+    const etiqueta = document.createElement('span');
+    etiqueta.className = 'copy-label';
+    etiqueta.textContent = dato.etiqueta;
+
+    const valor = document.createElement('span');
+    valor.className = 'copy-value';
+    valor.textContent = dato.valor;
+
+    li.append(etiqueta, valor, crearBotonCopiar(dato.valor));
+    lista.append(li);
+  }
+
+  return lista;
+}
+
+function renderGls(gls, order = null) {
   const contenedor = document.getElementById('gracias-gls');
   if (!contenedor) return;
   contenedor.replaceChildren();
@@ -144,8 +194,10 @@ function renderGls(gls) {
     return;
   }
 
-  // En la ruta de fallo este enlace es la única acción de recuperación que le queda a alguien
-  // que ya ha pagado, así que se pinta como botón primario igual que en el modal.
+  // En la ruta de fallo el portal es la única acción de recuperación que le queda a alguien que
+  // ya ha pagado, así que se pinta igual que en el modal: el enlace como botón primario y los
+  // datos que hay que copiar en él. Fiarlo todo al email de GLS —o al nuestro, que también es
+  // best-effort— sería apoyarse justo en lo que este modo B existe para suplir.
   contenedor.classList.add('gls-manual');
 
   const titulo = document.createElement('h3');
@@ -158,7 +210,8 @@ function renderGls(gls) {
   enlace.target = '_blank';
   enlace.rel = 'noopener';
   enlace.textContent = t(lang, 'gls_manual_link');
-  contenedor.append(titulo, descripcion, enlace);
+  const lista = crearListaDatos(buildDatosPortal(order, gls.returnReason));
+  contenedor.append(titulo, descripcion, lista, enlace);
 }
 
 async function run() {
@@ -176,7 +229,7 @@ async function run() {
     const result = await confirmPayment(API_BASE_URL, sessionId);
     if (result.paid) {
       const { secciones } = buildOrderSummary(result.order, lang);
-      render('gracias_title', 'gracias_paid', secciones, result.gls);
+      render('gracias_title', 'gracias_paid', secciones, result.gls, result.order);
     } else {
       render('gracias_title', 'gracias_not_paid');
     }

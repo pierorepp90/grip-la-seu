@@ -2,6 +2,12 @@ import { describirLinea, nombrePais, nombreMetodoPago } from './catalogo.js';
 
 const FROM_ADDRESS = 'Grip La Seu <pedidos@griplaseu.es>';
 
+// El motivo de devolución lo elige index.js con GLS_RETURN_REASON y lo manda en
+// gls.returnReason: escribirlo aquí a mano hacía que cambiar la variable dejara al cliente
+// eligiendo otra opción del desplegable del portal. Esto es solo el respaldo para las
+// respuestas que no lo traigan (pedidos guardados en KV antes de que empezara a mandarlo).
+const MOTIVO_DEVOLUCION_POR_DEFECTO = 'Sin motivo específico';
+
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (char) => ({
     '&': '&amp;',
@@ -223,7 +229,7 @@ function glsHtmlCliente(orderPayload, gls) {
     datos:</p>
     <ul>
       <li>Número de pedido: <strong>${escapeHtml(orderId)}</strong></li>
-      <li>Motivo de devolución: Sin motivo específico</li>
+      <li>Motivo de devolución: ${escapeHtml(gls?.returnReason || MOTIVO_DEVOLUCION_POR_DEFECTO)}</li>
       <li>Nombre: ${escapeHtml(nombre)}</li>
       <li>Correo electrónico: ${escapeHtml(email)}</li>
       <li>Calle: ${escapeHtml(direccion.calle)}</li>

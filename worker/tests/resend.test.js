@@ -136,6 +136,23 @@ test('buildCustomerEmail en modo B da el enlace al portal y los datos a copiar',
   assert.doesNotMatch(email.html, /HTTP 500/);
 });
 
+test('buildCustomerEmail dice el motivo de devolución que ha elegido el Worker', () => {
+  // GLS_RETURN_REASON manda: si cambia, el email tiene que mandar al cliente a la misma
+  // opción del desplegable del portal que habríamos mandado nosotros.
+  const email = buildCustomerEmail(orderPayload, 'ana@example.com', {
+    ...glsFallo,
+    returnReason: 'Producto defectuoso',
+  });
+  assert.match(email.html, /Motivo de devolución: Producto defectuoso/);
+  assert.doesNotMatch(email.html, /Sin motivo específico/);
+});
+
+test('buildCustomerEmail cae al motivo por defecto si la respuesta no lo trae', () => {
+  // Pedido guardado en KV antes de que el Worker empezara a mandarlo.
+  const email = buildCustomerEmail(orderPayload, 'ana@example.com', glsFallo);
+  assert.match(email.html, /Motivo de devolución: Sin motivo específico/);
+});
+
 test('sendEmail hace POST autenticado a Resend', async () => {
   const fakeFetch = async (url, options) => {
     assert.equal(url, 'https://api.resend.com/emails');
