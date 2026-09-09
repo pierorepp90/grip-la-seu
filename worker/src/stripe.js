@@ -94,7 +94,17 @@ export async function createStripeSession(params, secretKey, fetchFn = fetch) {
     body: params.toString(),
   });
   if (!response.ok) {
-    throw new Error('Stripe rechazó la creación de la sesión');
+    // Sin el motivo de Stripe, cualquier fallo aqui es indiagnosticable desde fuera: el
+    // cliente solo ve "algo ha fallado" y no hay forma de saber si es la clave, el importe
+    // o el payload. Se incluye el mensaje de Stripe, que describe la peticion, no la cuenta.
+    const detalle = await response.text().catch(() => '');
+    let motivo = detalle.slice(0, 300);
+    try {
+      motivo = JSON.parse(detalle).error?.message ?? motivo;
+    } catch {
+      // Stripe no siempre responde JSON (p.ej. un 502 del borde); nos quedamos con el texto.
+    }
+    throw new Error(`Stripe rechazó la creación de la sesión (HTTP ${response.status}): ${motivo}`);
   }
   return response.json();
 }

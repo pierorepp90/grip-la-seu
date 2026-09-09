@@ -155,8 +155,29 @@ test('createStripeSession hace POST autenticado y devuelve el JSON', async () =>
 });
 
 test('createStripeSession lanza error si Stripe responde con error', async () => {
-  const fakeFetch = async () => ({ ok: false });
+  const fakeFetch = async () => ({ ok: false, status: 500, text: async () => '' });
   await assert.rejects(() => createStripeSession(new URLSearchParams(), 'sk_test_123', fakeFetch));
+});
+
+test('createStripeSession incluye el motivo que da Stripe, para poder diagnosticarlo', async () => {
+  const fakeFetch = async () => ({
+    ok: false,
+    status: 401,
+    text: async () =>
+      JSON.stringify({ error: { message: 'Invalid API Key provided: pk_test_***' } }),
+  });
+  await assert.rejects(
+    () => createStripeSession(new URLSearchParams(), 'pk_test_123', fakeFetch),
+    /HTTP 401.*Invalid API Key/,
+  );
+});
+
+test('createStripeSession sobrevive a una respuesta de error que no sea JSON', async () => {
+  const fakeFetch = async () => ({ ok: false, status: 502, text: async () => 'Bad gateway' });
+  await assert.rejects(
+    () => createStripeSession(new URLSearchParams(), 'sk_test_123', fakeFetch),
+    /HTTP 502.*Bad gateway/,
+  );
 });
 
 test('retrieveStripeSession pide la sesión con los line_items expandidos', async () => {
