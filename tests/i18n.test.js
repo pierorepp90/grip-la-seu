@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile, readdir } from 'node:fs/promises';
 import { LANGS, DICT, t } from '../js/i18n.js';
 
 test('todas las lenguas tienen exactamente las mismas claves', () => {
@@ -32,4 +33,29 @@ test('t() sustituye los parámetros entre llaves', () => {
 
 test('t() deja el placeholder intacto si no se le pasa el parámetro', () => {
   assert.match(t('es', 'envio_falta_para_gratis'), /\{importe\}/);
+});
+
+// Las plantillas piden claves por su nombre y t() devuelve la clave cuando no la encuentra:
+// una errata en el HTML no rompe nada, solo pinta "error_cp_es" en la cara del cliente. Esto
+// lo comprueba a máquina, no a ojo.
+test('todas las claves $t() del HTML existen en los cuatro idiomas', async () => {
+  const raiz = new URL('..', import.meta.url);
+  const ficheros = (await readdir(raiz)).filter((nombre) => nombre.endsWith('.html'));
+  assert.ok(ficheros.length > 0, 'no se ha encontrado ningún HTML que revisar');
+
+  let comprobadas = 0;
+  for (const fichero of ficheros) {
+    const html = await readFile(new URL(fichero, raiz), 'utf8');
+    // Solo las claves literales: $t('dia_' + dia.weekday) se arma en tiempo de ejecución.
+    for (const [, clave] of html.matchAll(/\$t\(\s*'([^']+)'\s*[,)]/g)) {
+      comprobadas += 1;
+      for (const lang of LANGS) {
+        assert.ok(
+          Object.hasOwn(DICT[lang], clave),
+          `${fichero} usa $t('${clave}') y falta la traducción en ${lang}`,
+        );
+      }
+    }
+  }
+  assert.ok(comprobadas > 0, 'no se ha encontrado ninguna clave $t() literal');
 });

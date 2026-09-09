@@ -232,56 +232,68 @@
         </template>
 
         <template x-if="!success && step === 2">
-          <div>
+          <!-- Un <form> de verdad: pulsar Enter en cualquier campo hace lo mismo que
+               "Siguiente". novalidate porque los mensajes los damos nosotros, traducidos y
+               campo a campo, en vez de dejar el globo del navegador. -->
+          <form novalidate @submit.prevent="enviarPaso2()">
             <h2 x-text="$t('step2_title')"></h2>
 
             <div class="form-field">
               <label for="of-nombre" x-text="$t('nombre_label')"></label>
-              <input id="of-nombre" type="text" maxlength="40" x-model="nombre" />
+              <input id="of-nombre" type="text" maxlength="40" x-model="nombre" @blur="marcarTocado('nombre')" :aria-invalid="errorCampo('nombre') ? 'true' : false" :aria-describedby="errorCampo('nombre') ? 'of-nombre-error' : false" />
+              <p class="field-error" id="of-nombre-error" aria-live="polite" x-text="errorCampo('nombre')"></p>
             </div>
             <div class="form-field">
               <label for="of-email" x-text="$t('email_label')"></label>
-              <input id="of-email" type="email" maxlength="255" x-model="email" />
+              <input id="of-email" type="email" maxlength="255" x-model="email" @blur="marcarTocado('email')" :aria-invalid="errorCampo('email') ? 'true' : false" :aria-describedby="errorCampo('email') ? 'of-email-error' : false" />
+              <p class="field-error" id="of-email-error" aria-live="polite" x-text="errorCampo('email')"></p>
             </div>
             <div class="form-field">
               <label for="of-telefono" x-text="$t('telefono_label')"></label>
-              <input id="of-telefono" type="tel" x-model="telefono" />
+              <input id="of-telefono" type="tel" x-model="telefono" @blur="marcarTocado('telefono')" :aria-invalid="errorCampo('telefono') ? 'true' : false" :aria-describedby="errorCampo('telefono') ? 'of-telefono-error' : false" />
+              <p class="field-error" id="of-telefono-error" aria-live="polite" x-text="errorCampo('telefono')"></p>
             </div>
 
             <h3 x-text="$t('direccion_label')"></h3>
 
             <div class="form-field">
               <label for="of-pais" x-text="$t('pais_label')"></label>
-              <select id="of-pais" x-model="pais">
+              <select id="of-pais" x-model="pais" @change="alCambiarPais()">
                 <option value="ES" x-text="$t('pais_es')"></option>
                 <option value="PT" x-text="$t('pais_pt')"></option>
               </select>
             </div>
             <div class="form-field">
               <label for="of-calle" x-text="$t('calle_label')"></label>
-              <input id="of-calle" type="text" maxlength="40" x-model="calle" />
+              <input id="of-calle" type="text" maxlength="40" x-model="calle" @blur="marcarTocado('calle')" :aria-invalid="errorCampo('calle') ? 'true' : false" :aria-describedby="errorCampo('calle') ? 'of-calle-error' : false" />
+              <p class="field-error" id="of-calle-error" aria-live="polite" x-text="errorCampo('calle')"></p>
             </div>
             <div class="form-field">
               <label for="of-numero" x-text="$t('numero_label')"></label>
-              <input id="of-numero" type="text" maxlength="6" x-model="numero" />
+              <input id="of-numero" type="text" maxlength="6" x-model="numero" @blur="marcarTocado('numero')" :aria-invalid="errorCampo('numero') ? 'true' : false" :aria-describedby="errorCampo('numero') ? 'of-numero-error' : false" />
+              <p class="field-error" id="of-numero-error" aria-live="polite" x-text="errorCampo('numero')"></p>
             </div>
             <div class="form-field">
               <label for="of-cp" x-text="$t('cp_label')"></label>
-              <input id="of-cp" type="text" maxlength="10" x-model="codigoPostal" />
+              <input id="of-cp" type="text" maxlength="10" x-model="codigoPostal" @blur="marcarTocado('codigoPostal')" :aria-invalid="errorCampo('codigoPostal') ? 'true' : false" :aria-describedby="errorCampo('codigoPostal') ? 'of-cp-error' : false" />
+              <p class="field-error" id="of-cp-error" aria-live="polite" x-text="errorCampo('codigoPostal')"></p>
             </div>
             <div class="form-field">
               <label for="of-ciudad" x-text="$t('ciudad_label')"></label>
-              <input id="of-ciudad" type="text" maxlength="40" x-model="ciudad" />
+              <input id="of-ciudad" type="text" maxlength="40" x-model="ciudad" @blur="marcarTocado('ciudad')" :aria-invalid="errorCampo('ciudad') ? 'true' : false" :aria-describedby="errorCampo('ciudad') ? 'of-ciudad-error' : false" />
+              <p class="field-error" id="of-ciudad-error" aria-live="polite" x-text="errorCampo('ciudad')"></p>
             </div>
 
             <p class="price-total" x-text="$t('precio_total_label') + ': ' + precioTotal.toFixed(2) + '€'"></p>
             <p class="shipping-note" x-text="transporte === 0 ? $t('envio_gratis') : ($t('envio_gls_label') + ': ' + transporte.toFixed(2) + '€')"></p>
 
+            <p class="error-message" aria-live="polite" x-text="resumenErrorPaso2"></p>
+
             <div class="modal-nav">
               <button type="button" class="btn btn-secondary" @click="step = 1" x-text="$t('btn_atras')"></button>
-              <button type="button" class="btn btn-primary" :disabled="!canProceedStep2" @click="step = 3" x-text="$t('btn_siguiente')"></button>
+              <button type="submit" class="btn btn-primary" x-text="$t('btn_siguiente')"></button>
             </div>
-          </div>
+          </form>
         </template>
 
         <template x-if="!success && step === 3">

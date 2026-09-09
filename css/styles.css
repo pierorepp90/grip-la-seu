@@ -11,6 +11,7 @@
   --color-border-light: #eee;
   --color-sky-light: #e2f3fb;
   --color-sky: #9bd6ee;
+  --color-error: #b3261e;
   --radius: 10px;
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
   --max-width: 1100px;
@@ -551,9 +552,28 @@ footer.site-footer {
 }
 
 .error-message {
-  color: #b3261e;
+  color: var(--color-error);
   font-size: 0.9rem;
   margin-top: 0.5rem;
+}
+
+/* El mensaje de cada campo vive siempre en el DOM (aria-live="polite" solo anuncia lo que ya
+   estaba ahí), así que cuando no hay nada que decir se queda vacío y no ocupa. */
+.field-error {
+  color: var(--color-error);
+  font-size: 0.9rem;
+  margin: 0.25rem 0 0;
+}
+
+.field-error:empty,
+.error-message:empty {
+  display: none;
+}
+
+/* El color no puede ser la única señal: el mensaje debajo dice qué esperamos. */
+.form-field input[aria-invalid='true'],
+.form-field select[aria-invalid='true'] {
+  border-color: var(--color-error);
 }
 
 [x-cloak] {

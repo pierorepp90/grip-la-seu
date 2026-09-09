@@ -2,7 +2,13 @@
 import { LANGS, t } from './i18n.js';
 import { PRECIOS, PRECIO_TRANSPORTE_GLS, ENVIO_GRATIS_DESDE } from './precios.js';
 import { calculateLinePrice, minPrecioServicio, calcularTransporte } from './pricing.js';
-import { isNonEmpty, isValidPhone, isValidPostalCode, isValidEmail } from './validation.js';
+import { isNonEmpty } from './validation.js';
+import {
+  CAMPOS_QUE_DEPENDEN_DEL_PAIS,
+  claveErrorCampo,
+  esPaso2Valido,
+  primerCampoInvalido,
+} from './campos-paso2.js';
 import { generateOrderId, buildOrderSummary } from './order.js';
 import { createCheckoutSession, notifyOrder } from './api.js';
 import { API_BASE_URL, GLS_PORTAL_URL, GLS_BUSCADOR_URL } from './config.js';
@@ -53,6 +59,12 @@ document.addEventListener('alpine:init', () => {
     codigoPostal: '',
     ciudad: '',
     pais: 'ES',
+
+    // Feedback del paso 2. Un formulario vacío no se abre en rojo: cada campo se queja cuando
+    // el cliente ya ha pasado por él (tocadosPaso2, que llena el blur) o cuando ha intentado
+    // seguir con algo mal (intentoPaso2).
+    tocadosPaso2: {},
+    intentoPaso2: false,
 
     // Resultado de la devolución GLS, lo devuelve el Worker
     gls: null,
@@ -110,16 +122,65 @@ document.addEventListener('alpine:init', () => {
       return this.carrito.length > 0 && this.carrito.every((linea) => linea.cantidad >= 1);
     },
 
+    // Lo que el modelo de js/campos-paso2.js necesita para juzgar el formulario. Leerlo aquí
+    // hace que todo lo que dependa de él (botón, mensajes, aria-invalid) se recalcule solo
+    // cuando cambia cualquier campo, incluido el país.
+    get valoresPaso2() {
+      return {
+        nombre: this.nombre,
+        email: this.email,
+        telefono: this.telefono,
+        calle: this.calle,
+        numero: this.numero,
+        codigoPostal: this.codigoPostal,
+        ciudad: this.ciudad,
+        pais: this.pais,
+      };
+    },
+
     get canProceedStep2() {
-      return Boolean(
-        isNonEmpty(this.nombre) &&
-          isValidEmail(this.email) &&
-          isValidPhone(this.telefono, this.pais) &&
-          isNonEmpty(this.calle) &&
-          isNonEmpty(this.numero) &&
-          isValidPostalCode(this.codigoPostal, this.pais) &&
-          isNonEmpty(this.ciudad),
-      );
+      return esPaso2Valido(this.valoresPaso2);
+    },
+
+    // Texto del error de un campo, o cadena vacía si no toca enseñarlo todavía.
+    errorCampo(campo) {
+      if (!this.intentoPaso2 && !this.tocadosPaso2[campo]) return '';
+      const clave = claveErrorCampo(campo, this.valoresPaso2);
+      return clave ? t(Alpine.store('i18n').lang, clave) : '';
+    },
+
+    marcarTocado(campo) {
+      this.tocadosPaso2[campo] = true;
+    },
+
+    // Cambiar de país puede invalidar un teléfono o un CP que ya estaban bien. El mensaje se
+    // recalcula solo, pero si el campo aún no se había tocado no se vería: si ya tiene algo
+    // escrito, lo damos por tocado para que el cliente se entere en el momento.
+    alCambiarPais() {
+      for (const campo of CAMPOS_QUE_DEPENDEN_DEL_PAIS) {
+        if (isNonEmpty(this[campo.nombre])) this.marcarTocado(campo.nombre);
+      }
+    },
+
+    get resumenErrorPaso2() {
+      if (!this.intentoPaso2 || this.canProceedStep2) return '';
+      return t(Alpine.store('i18n').lang, 'error_resumen');
+    },
+
+    // El botón "Siguiente" ya no se desactiva: un botón gris no explica nada y, además, los
+    // navegadores lo sacan del orden de tabulación, así que quien navega con teclado se
+    // quedaba sin nada que pulsar al final del formulario. Ahora siempre se puede pulsar
+    // (y el <form> hace que Enter haga lo mismo): si falta algo, se enseñan los errores y el
+    // foco salta al primer campo que falla.
+    enviarPaso2() {
+      if (this.canProceedStep2) {
+        this.intentoPaso2 = false;
+        this.step = 3;
+        return;
+      }
+      this.intentoPaso2 = true;
+      const campo = primerCampoInvalido(this.valoresPaso2);
+      if (campo) document.getElementById(campo.inputId)?.focus();
     },
 
     buscarLineaCarrito(tipoCalzado, servicio, material) {
