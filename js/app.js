@@ -10,7 +10,7 @@ import {
   primerCampoInvalido,
 } from './campos-paso2.js';
 import { generateOrderId, buildOrderSummary, buildDatosPortal } from './order.js';
-import { createCheckoutSession, notifyOrder } from './api.js';
+import { createCheckoutSession, notifyOrderHastaResultado } from './api.js';
 import { API_BASE_URL, GLS_PORTAL_URL, GLS_BUSCADOR_URL } from './config.js';
 import { resolverPunto } from './punto-gls.js';
 import { copiarAlPortapapeles, MS_CONFIRMACION_COPIADO } from './portapapeles.js';
@@ -69,6 +69,9 @@ document.addEventListener('alpine:init', () => {
 
     // Resultado de la devolución GLS, lo devuelve el Worker
     gls: null,
+    // Otra petición del mismo pedido está creando la devolución ahora mismo (el Worker
+    // contesta enCurso). No es ni éxito ni fallo: no se pinta ni la etiqueta ni el modo B.
+    glsEnCurso: false,
     copiado: '',
 
     // Paso 3
@@ -323,10 +326,16 @@ document.addEventListener('alpine:init', () => {
     async confirmarPedido() {
       this.errorMsg = '';
       this.submitting = true;
+      this.glsEnCurso = false;
       try {
         const payload = this.buildOrderPayload();
-        const respuesta = await notifyOrder(API_BASE_URL, payload);
-        this.gls = respuesta.gls ?? { ok: false };
+        const respuesta = await notifyOrderHastaResultado(API_BASE_URL, payload);
+        // enCurso significa que otra petición del mismo pedido —la otra pestaña, o la ruta de
+        // tarjeta que el cliente abandonó con el botón de atrás— está creando la devolución.
+        // Enseñarle entonces las instrucciones manuales del modo B sería pedirle que cree a
+        // mano una etiqueta que ya viene sola: dos etiquetas facturables para el mismo pedido.
+        this.glsEnCurso = respuesta.enCurso === true;
+        this.gls = this.glsEnCurso ? null : (respuesta.gls ?? { ok: false });
         this.summarySections = buildOrderSummary(payload, Alpine.store('i18n').lang).secciones;
         this.success = true;
       } catch (error) {

@@ -1,7 +1,7 @@
 // js/gracias.js
 import { t } from './i18n.js';
 import { buildOrderSummary, buildDatosPortal } from './order.js';
-import { confirmPayment } from './api.js';
+import { confirmPaymentHastaResultado } from './api.js';
 import { API_BASE_URL, GLS_PORTAL_URL, GLS_BUSCADOR_URL } from './config.js';
 import { resolverPunto } from './punto-gls.js';
 import { copiarAlPortapapeles, MS_CONFIRMACION_COPIADO } from './portapapeles.js';
@@ -214,6 +214,26 @@ function renderGls(gls, order = null) {
   contenedor.append(titulo, descripcion, lista, enlace);
 }
 
+// El Worker contesta enCurso cuando otra petición del mismo pedido está creando la devolución
+// GLS en ese momento (un F5 sobre esta página, otra pestaña, el mismo pedido llegando también
+// por bizum). El pago sí está confirmado, así que el recibo se pinta entero y lo único que
+// falta es el bloque de GLS: en su sitio va el aviso de que la etiqueta se está preparando.
+//
+// Lo que no se pinta es el modo B: pedirle a alguien que cree la etiqueta a mano mientras la
+// automática se está creando es justo como se acaba con dos etiquetas facturables.
+function renderEnCurso(result, claveAviso) {
+  const secciones = result.order ? buildOrderSummary(result.order, lang).secciones : [];
+  render('gracias_title', 'gracias_paid', secciones);
+
+  const contenedor = document.getElementById('gracias-gls');
+  if (!contenedor) return;
+  contenedor.classList.add('gls-result');
+  const aviso = document.createElement('p');
+  aviso.className = 'punto-aviso';
+  aviso.textContent = t(lang, claveAviso);
+  contenedor.append(aviso);
+}
+
 async function run() {
   const params = new URLSearchParams(window.location.search);
   const sessionId = params.get('session_id');
@@ -226,13 +246,22 @@ async function run() {
   render('gracias_title', 'gracias_pending');
 
   try {
-    const result = await confirmPayment(API_BASE_URL, sessionId);
-    if (result.paid) {
-      const { secciones } = buildOrderSummary(result.order, lang);
-      render('gracias_title', 'gracias_paid', secciones, result.gls, result.order);
-    } else {
+    const result = await confirmPaymentHastaResultado(API_BASE_URL, sessionId, {
+      alEsperar: (parcial) => renderEnCurso(parcial, 'gls_en_curso'),
+    });
+    if (!result.paid) {
       render('gracias_title', 'gracias_not_paid');
+      return;
     }
+    if (result.enCurso) {
+      // Se acabaron los reintentos y la otra petición sigue sin dejar resultado en KV. El
+      // pago está cobrado y la etiqueta en camino: lo que no puede pasar es que el cliente
+      // se quede con un spinner eterno y crea que tiene que repetir el pedido.
+      renderEnCurso(result, 'gls_en_curso_lento');
+      return;
+    }
+    const { secciones } = buildOrderSummary(result.order, lang);
+    render('gracias_title', 'gracias_paid', secciones, result.gls, result.order);
   } catch (error) {
     console.error(error);
     render('gracias_title', 'gracias_error');

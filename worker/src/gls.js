@@ -95,7 +95,13 @@ export async function createReturnOrder(request, env, fetchFn = fetch, timeoutMs
       signal: controller.signal,
     });
     if (!response.ok) {
-      throw new Error(`GLS rechazó la creación de la devolución (HTTP ${response.status})`);
+      const error = new Error(`GLS rechazó la creación de la devolución (HTTP ${response.status})`);
+      // El status va como propiedad, no solo dentro del mensaje: quien decide si se puede
+      // reintentar (worker/src/pedidos.js) necesita distinguir un 4xx —GLS rechazó la
+      // petición sin crear nada— de un 5xx, y sacarlo del texto a base de regex se rompe a
+      // la primera vez que alguien retoque el mensaje.
+      error.httpStatus = response.status;
+      throw error;
     }
     return await response.json();
   } finally {

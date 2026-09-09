@@ -143,3 +143,17 @@ test('createReturnOrder aborta la petición si GLS no responde a tiempo', async 
     });
   await assert.rejects(() => createReturnOrder({}, env, fakeFetch, 10), /AbortError/);
 });
+
+// El código HTTP va también como propiedad del error, no solo dentro del mensaje: index.js
+// decide con él si el fallo permite reintentar (4xx: GLS no creó nada) o no, y sacarlo del
+// texto con una expresión regular se rompería a la primera vez que alguien retoque el mensaje.
+test('createReturnOrder adjunta el status HTTP al error para poder clasificarlo', async () => {
+  const fakeFetch = async () => ({ ok: false, status: 422 });
+  await assert.rejects(
+    () => createReturnOrder({}, env, fakeFetch),
+    (error) => {
+      assert.equal(error.httpStatus, 422);
+      return true;
+    },
+  );
+});

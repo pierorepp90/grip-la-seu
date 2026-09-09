@@ -142,6 +142,14 @@
                 <a class="btn btn-primary" :href="portalUrl" target="_blank" rel="noopener" x-text="$t('gls_manual_link')"></a>
               </div>
             </template>
+
+            <!-- Ni etiqueta ni modo B: otra peticion del mismo pedido esta creando la
+                 devolucion. El pedido esta confirmado y la etiqueta llegara por email. -->
+            <template x-if="glsEnCurso">
+              <div class="gls-result">
+                <p class="punto-aviso" x-text="$t('gls_en_curso_lento')"></p>
+              </div>
+            </template>
           </div>
         </template>
 
