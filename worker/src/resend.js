@@ -1,3 +1,5 @@
+import { describirLinea, nombrePais, nombreMetodoPago } from './catalogo.js';
+
 const FROM_ADDRESS = 'Grip La Seu <pedidos@griplaseu.es>';
 
 function escapeHtml(value) {
@@ -10,26 +12,101 @@ function escapeHtml(value) {
   })[char]);
 }
 
-function direccionHtml(direccion) {
+// --- Recibo -------------------------------------------------------------------------------
+//
+// Mismo recibo que pinta el sitio (js/order.js → buildOrderSummary): las mismas secciones, en
+// el mismo orden, con los mismos nombres. Aquí se monta a mano porque worker/ se despliega
+// solo y no puede importar de js/, y porque un email no es una página: hace falta una tabla
+// con estilos en línea para que Gmail y Outlook respeten las dos columnas.
+//
+// El email es solo en castellano por diseño.
+
+const ESTILO_TABLA = 'width:100%;border-collapse:collapse;margin:0 0 20px;';
+const ESTILO_ETIQUETA = 'padding:6px 12px 6px 0;color:#6b7899;font-size:13px;text-align:left;vertical-align:top;';
+const ESTILO_ARTICULO = 'padding:6px 12px 6px 0;color:#0b1b33;font-size:14px;text-align:left;vertical-align:top;';
+const ESTILO_VALOR = 'padding:6px 0;color:#0b1b33;font-weight:600;text-align:right;white-space:nowrap;vertical-align:top;';
+const ESTILO_TOTAL =
+  'padding:10px 0 6px;color:#0b1b33;font-weight:700;font-size:16px;text-align:right;white-space:nowrap;vertical-align:top;border-top:1px solid #e4e0d4;';
+const ESTILO_TOTAL_ETIQUETA =
+  'padding:10px 12px 6px 0;color:#0b1b33;font-weight:700;font-size:16px;text-align:left;vertical-align:top;border-top:1px solid #e4e0d4;';
+const ESTILO_SECCION = 'margin:24px 0 8px;font-size:13px;text-transform:uppercase;color:#6b7899;';
+
+function fila(etiqueta, valor, tipo = 'dato') {
+  return { etiqueta, valor, tipo };
+}
+
+// Todo lo que entra en una fila se escapa, sin excepción: el nombre y la dirección los teclea
+// el cliente, la cantidad llega sin validar por /api/notify-order, y el servicio, el tipo de
+// calzado y el material también, porque ese endpoint no está autenticado y acepta cualquier
+// cuerpo. Las etiquetas fijas son nuestras, pero pasan por el mismo sitio para que no haya que
+// acordarse de cuál es cuál.
+function filaHtml({ etiqueta, valor, tipo }) {
+  const estiloEtiqueta =
+    tipo === 'total' ? ESTILO_TOTAL_ETIQUETA : tipo === 'articulo' ? ESTILO_ARTICULO : ESTILO_ETIQUETA;
+  const estiloValor = tipo === 'total' ? ESTILO_TOTAL : ESTILO_VALOR;
+  return `<tr><td style="${estiloEtiqueta}">${escapeHtml(etiqueta)}</td><td style="${estiloValor}">${escapeHtml(valor)}</td></tr>`;
+}
+
+function seccionHtml(titulo, filas) {
+  return `
+      <h3 style="${ESTILO_SECCION}">${escapeHtml(titulo)}</h3>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="${ESTILO_TABLA}">
+        ${filas.map(filaHtml).join('\n        ')}
+      </table>`;
+}
+
+function euros(importe) {
+  return `${importe.toFixed(2)}€`;
+}
+
+function filasPedido(orderPayload, etiquetaReferencia) {
+  const { orderId, carrito, transporte, precioTotal } = orderPayload;
+  const filas = [
+    fila(etiquetaReferencia, orderId),
+    ...carrito.map((linea) =>
+      fila(`${describirLinea(linea)} ×${linea.cantidad}`, euros(linea.precioSubtotal), 'articulo'),
+    ),
+  ];
+  if (transporte > 0) {
+    filas.push(fila('Envío GLS', euros(transporte)));
+  }
+  filas.push(fila('Precio total', euros(precioTotal), 'total'));
+  return filas;
+}
+
+function filasEntrega(orderPayload) {
+  const { nombre, direccion, telefono, email } = orderPayload;
   return [
-    `<li>Dirección: ${escapeHtml(direccion.calle)} ${escapeHtml(direccion.numero)}</li>`,
-    `<li>Código postal: ${escapeHtml(direccion.codigoPostal)}</li>`,
-    `<li>Ciudad: ${escapeHtml(direccion.ciudad)}</li>`,
-    `<li>País: ${escapeHtml(direccion.pais)}</li>`,
-  ].join('\n');
+    fila('Nombre', nombre),
+    fila('Dirección', `${direccion.calle} ${direccion.numero}`),
+    fila('Código postal', direccion.codigoPostal),
+    fila('Ciudad', direccion.ciudad),
+    fila('País', nombrePais(direccion.pais)),
+    fila('Teléfono', telefono),
+    fila('Email', email),
+  ];
+}
+
+function filasPago(orderPayload) {
+  return [fila('Método de pago', nombreMetodoPago(orderPayload.metodoPago))];
 }
 
 function glsHtmlPropietario(gls) {
   if (gls && gls.ok) {
-    return `<li>Devolución GLS: ${escapeHtml(gls.trackId)} <small>(id ${escapeHtml(gls.returnOrderId)})</small></li>`;
+    return seccionHtml('Devolución GLS', [
+      fila('Referencia', `${gls.trackId} (id ${gls.returnOrderId})`),
+    ]);
   }
-  return `<li><strong>⚠️ No se pudo crear la devolución GLS automáticamente — el cliente ha recibido instrucciones manuales.</strong> Motivo: ${escapeHtml(gls?.error ?? 'desconocido')}</li>`;
+  return `
+      <p style="border-left:3px solid #f0a83c;background:#fff7ea;padding:12px 16px;">
+      <strong>⚠️ No se pudo crear la devolución GLS automáticamente — el cliente ha recibido
+      instrucciones manuales.</strong> Motivo: ${escapeHtml(gls?.error ?? 'desconocido')}</p>`;
 }
 
-// Punto de entrega que GLS asigna al crear la devolución. El formateo y la regla de qué punto
-// es utilizable están duplicados a propósito de js/punto-gls.js: worker/ se despliega solo
-// (wrangler, su propio package.json) y no puede depender de la carpeta js/ del sitio estático.
-// Si cambian las reglas de formato o de capacidades, hay que tocar los dos ficheros.
+// Punto de entrega que GLS asigna al crear la devolución. El formateo, la regla de qué punto
+// es utilizable y el colapso de los días abiertos 24 h están duplicados a propósito de
+// js/punto-gls.js: worker/ se despliega solo (wrangler, su propio package.json) y no puede
+// depender de la carpeta js/ del sitio estático. Si cambian, hay que tocar los dos ficheros.
 const BUSCADOR_GLS_URL = 'https://www.gls-spain.es/es/parcel-shops/';
 
 const DIAS_ES = {
@@ -61,6 +138,28 @@ function aceptaDevoluciones(punto) {
   return capacidades.offersReturnDropOff === 'Y' && capacidades.offersPrepaidParcelDropOff === 'Y';
 }
 
+// Espejo de cubreElDia() en js/punto-gls.js. GLS expresa un punto abierto 24/7 como dos tramos
+// pegados por día (00:00–14:00 y 14:00–23:59); pintados literalmente son seis líneas casi
+// idénticas de ruido.
+function enMinutos(hora) {
+  const partes = /^(\d{1,2}):(\d{2})$/.exec(String(hora));
+  if (!partes) return null;
+  return Number(partes[1]) * 60 + Number(partes[2]);
+}
+
+function cubreElDia(hours) {
+  if (!Array.isArray(hours) || hours.length === 0) return false;
+  const tramos = hours.map((tramo) => [enMinutos(tramo.openingTime), enMinutos(tramo.closingTime)]);
+  if (tramos.some(([inicio, fin]) => inicio === null || fin === null)) return false;
+
+  let alcance = 0;
+  for (const [inicio, fin] of [...tramos].sort((a, b) => a[0] - b[0])) {
+    if (inicio > alcance) return false;
+    alcance = Math.max(alcance, fin === 0 ? 1440 : fin);
+  }
+  return alcance >= 1439;
+}
+
 // El email es solo en castellano por diseño; el equivalente traducido de este aviso vive en
 // js/i18n.js bajo la clave gls_punto_no_devoluciones.
 const AVISO_SIN_DEVOLUCIONES =
@@ -87,9 +186,11 @@ function puntoHtml(punto) {
       const nombreDia = Object.hasOwn(DIAS_ES, dia.weekday)
         ? DIAS_ES[dia.weekday]
         : escapeHtml(dia.weekday);
-      const tramos = (dia.hours ?? [])
-        .map((tramo) => `${escapeHtml(tramo.openingTime)}–${escapeHtml(tramo.closingTime)}`)
-        .join(', ');
+      const tramos = cubreElDia(dia.hours)
+        ? 'Abierto 24 h'
+        : (dia.hours ?? [])
+            .map((tramo) => `${escapeHtml(tramo.openingTime)}–${escapeHtml(tramo.closingTime)}`)
+            .join(', ');
       return `<li>${nombreDia}: ${tramos}</li>`;
     })
     .join('\n');
@@ -129,34 +230,14 @@ function glsHtmlCliente(orderPayload, gls) {
       <li>Número: ${escapeHtml(direccion.numero)}</li>
       <li>Código postal: ${escapeHtml(direccion.codigoPostal)}</li>
       <li>Ciudad: ${escapeHtml(direccion.ciudad)}</li>
-      <li>País: ${escapeHtml(direccion.pais)}</li>
+      <li>País: ${escapeHtml(nombrePais(direccion.pais))}</li>
     </ul>
     <p><a href="${escapeHtml(gls?.portalUrl ?? '')}">Abrir el portal de GLS</a></p>
   `;
 }
 
-// `cantidad` tambien se escapa: el formulario solo produce enteros, pero /api/notify-order no
-// tiene autenticacion y acepta cualquier cuerpo, asi que aqui no es un numero de confianza.
-function formatearLineaCarrito(linea) {
-  const subtotal = linea.precioSubtotal.toFixed(2);
-  const cantidad = escapeHtml(linea.cantidad);
-  if (linea.descripcion) {
-    return `${escapeHtml(linea.descripcion)} ×${cantidad} — ${subtotal}€`;
-  }
-  const variante = linea.material ? ` (${escapeHtml(linea.material)})` : '';
-  return `${escapeHtml(linea.tipoCalzado)} · ${escapeHtml(linea.servicio)}${variante} ×${cantidad} — ${subtotal}€`;
-}
-
-function lineasCarritoHtml(orderPayload) {
-  const lineas = orderPayload.carrito.map((linea) => `<li>${formatearLineaCarrito(linea)}</li>`);
-  if (orderPayload.transporte > 0) {
-    lineas.push(`<li>Envío GLS: ${orderPayload.transporte.toFixed(2)}€</li>`);
-  }
-  return lineas.join('\n');
-}
-
 export function buildOwnerEmail(orderPayload, ownerEmail, gls) {
-  const { orderId, precioTotal, nombre, direccion, telefono, email, metodoPago } = orderPayload;
+  const { orderId } = orderPayload;
 
   return {
     from: FROM_ADDRESS,
@@ -164,22 +245,16 @@ export function buildOwnerEmail(orderPayload, ownerEmail, gls) {
     subject: `Nuevo pedido ${orderId}`,
     html: `
       <h2>Nuevo pedido ${escapeHtml(orderId)}</h2>
-      <ul>
-        ${lineasCarritoHtml(orderPayload)}
-        <li>Precio total: ${precioTotal.toFixed(2)}€</li>
-        <li>Nombre: ${escapeHtml(nombre)}</li>
-        ${direccionHtml(direccion)}
-        <li>Teléfono: ${escapeHtml(telefono)}</li>
-        <li>Email: ${escapeHtml(email)}</li>
-        <li>Pago: ${escapeHtml(metodoPago)}</li>
-        ${glsHtmlPropietario(gls)}
-      </ul>
+      ${seccionHtml('Pedido', filasPedido(orderPayload, 'Referencia'))}
+      ${seccionHtml('Entrega', filasEntrega(orderPayload))}
+      ${seccionHtml('Pago', filasPago(orderPayload))}
+      ${glsHtmlPropietario(gls)}
     `,
   };
 }
 
 export function buildCustomerEmail(orderPayload, customerEmailAddress, gls) {
-  const { orderId, precioTotal, metodoPago } = orderPayload;
+  const { orderId } = orderPayload;
 
   return {
     from: FROM_ADDRESS,
@@ -187,12 +262,8 @@ export function buildCustomerEmail(orderPayload, customerEmailAddress, gls) {
     subject: `Hemos recibido tu pedido ${orderId} — Grip La Seu`,
     html: `
       <h2>¡Gracias por tu pedido!</h2>
-      <p>Referencia: <strong>${escapeHtml(orderId)}</strong></p>
-      <ul>
-        ${lineasCarritoHtml(orderPayload)}
-        <li>Precio total: ${precioTotal.toFixed(2)}€</li>
-        <li>Pago: ${escapeHtml(metodoPago)}</li>
-      </ul>
+      ${seccionHtml('Tu pedido', filasPedido(orderPayload, 'Referencia'))}
+      ${seccionHtml('Pago', filasPago(orderPayload))}
       ${glsHtmlCliente(orderPayload, gls)}
       <p>Nos pondremos en contacto contigo si necesitamos algo más.</p>
     `,

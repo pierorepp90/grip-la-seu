@@ -662,3 +662,129 @@ footer.site-footer {
   margin-top: 1rem;
   font-size: 0.9rem;
 }
+
+/* Recibo del pedido — modal de exito (index.html) y pagina de gracias (gracias.html).
+   Dos columnas, alineado a la izquierda y agrupado en secciones: etiqueta apagada y pequena,
+   valor destacado a la derecha. Mismo lenguaje que .copy-list, que ya resuelve este mismo
+   problema en el bloque manual de GLS. */
+.recibo {
+  margin-top: 1.25rem;
+}
+
+.recibo-seccion + .recibo-seccion {
+  margin-top: 1.5rem;
+}
+
+.recibo-seccion-title {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-slate);
+  margin: 0 0 0.25rem;
+}
+
+.recibo-filas {
+  margin: 0;
+}
+
+.recibo-fila {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.recibo-etiqueta {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--color-slate);
+}
+
+.recibo-valor {
+  margin: 0;
+  font-weight: 600;
+  text-align: right;
+  word-break: break-word;
+}
+
+/* La linea de carrito no es una etiqueta: es el articulo que se ha comprado, y va con el mismo
+   peso que su precio. El precio no parte nunca de linea. */
+.recibo-fila--articulo .recibo-etiqueta {
+  font-size: 0.95rem;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--color-navy);
+}
+
+.recibo-fila--articulo .recibo-valor,
+.recibo-fila--total .recibo-valor {
+  white-space: nowrap;
+}
+
+.recibo-fila--total {
+  border-bottom: none;
+  border-top: 1px solid var(--color-slate);
+  margin-top: 0.25rem;
+  padding-top: 0.75rem;
+}
+
+.recibo-fila--total .recibo-etiqueta {
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--color-navy);
+}
+
+.recibo-fila--total .recibo-valor {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+/* Pagina de gracias: el recibo sobre la crema del sitio, en su propia tarjeta. */
+.recibo-page {
+  padding: 3rem 0 4rem;
+}
+
+.recibo-card {
+  max-width: 640px;
+  margin: 0 auto;
+  background: var(--color-white);
+  border-radius: var(--radius);
+  padding: 2rem;
+  box-shadow: var(--shadow);
+}
+
+.recibo-card h1 {
+  margin: 0 0 0.5rem;
+  font-size: clamp(1.35rem, 3vw, 1.9rem);
+}
+
+.recibo-intro {
+  margin: 0;
+  color: var(--color-navy-light);
+}
+
+.recibo-volver {
+  display: inline-block;
+  margin-top: 1.5rem;
+}
+
+@media (max-width: 480px) {
+  .recibo-fila {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.15rem;
+  }
+
+  .recibo-valor {
+    text-align: left;
+  }
+
+  .recibo-card {
+    padding: 1.25rem;
+  }
+}

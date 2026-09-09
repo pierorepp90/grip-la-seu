@@ -85,17 +85,22 @@ test('buildOwnerEmail incluye el carrito, el envío y la dirección desglosada',
   assert.deepEqual(email.to, ['owner@example.com']);
   assert.match(email.subject, /GLS-1/);
   assert.match(email.html, /Ana Pérez/);
-  assert.match(email.html, /pie_de_gato · resolado_completo \(vibram_xs_grip2\) ×2 — 70\.00€/);
-  assert.match(email.html, /Envío GLS: 5\.00€/);
+  assert.match(email.html, /Resolado completo · Pie de gato · Vibram XS Grip2 ×2/);
+  assert.match(email.html, /70\.00€/);
+  assert.match(email.html, /Envío GLS/);
+  assert.match(email.html, /5\.00€/);
   assert.match(email.html, /75\.00€/);
   assert.match(email.html, /Carrer Major 12/);
   assert.match(email.html, /25700/);
   assert.match(email.html, /La Seu d&#39;Urgell/);
+  assert.match(email.html, /España/);
+  assert.match(email.html, /Bizum/);
 });
 
 test('buildOwnerEmail muestra la referencia de la devolución cuando GLS respondió', () => {
   const email = buildOwnerEmail(orderPayload, 'owner@example.com', glsOk);
-  assert.match(email.html, /Devolución GLS: Z79MB8U2/);
+  assert.match(email.html, /Devolución GLS/);
+  assert.match(email.html, /Z79MB8U2/);
   assert.match(email.html, /id RET-99/);
   assert.doesNotMatch(email.html, /No se pudo crear/);
 });
@@ -115,7 +120,7 @@ test('buildCustomerEmail en modo A remite a la etiqueta que envía GLS', () => {
   const email = buildCustomerEmail(orderPayload, 'ana@example.com', glsOk);
   assert.deepEqual(email.to, ['ana@example.com']);
   assert.match(email.subject, /GLS-1/);
-  assert.match(email.html, /pie_de_gato · resolado_completo/);
+  assert.match(email.html, /Resolado completo · Pie de gato · Vibram XS Grip2 ×2/);
   assert.match(email.html, /Z79MB8U2/);
   assert.match(email.html, /GLS te ha enviado/);
   assert.doesNotMatch(email.html, /returns\.gls-group\.com/);
@@ -370,4 +375,81 @@ test('buildCustomerEmail tampoco enseña un punto sin parcelHandlingRestriction'
 test('buildCustomerEmail solo avisa si GLS llegó a asignar un punto', () => {
   const email = buildCustomerEmail(orderPayload, 'ana@example.com', glsOkSinPunto);
   assert.doesNotMatch(email.html, /no admite devoluciones/);
+});
+
+// --- Nada de identificadores internos en el email -----------------------------------------
+
+// Texto que ve el cliente, sin etiquetas ni atributos: es donde no puede aparecer nunca un
+// nombre de variable. Las urls y los estilos quedan fuera a propósito.
+function textoVisible(html) {
+  return html.replace(/<[^>]*>/g, ' ');
+}
+
+test('buildCustomerEmail no deja ningún identificador interno en el texto del email', () => {
+  for (const gls of [glsOk, glsFallo]) {
+    const email = buildCustomerEmail(orderPayload, 'ana@example.com', gls);
+    assert.doesNotMatch(textoVisible(email.html), /_/);
+  }
+});
+
+test('buildOwnerEmail tampoco deja identificadores internos en el texto del email', () => {
+  const email = buildOwnerEmail(orderPayload, 'owner@example.com', glsOk);
+  assert.doesNotMatch(textoVisible(email.html), /_/);
+});
+
+test('los emails llaman al servicio por su nombre, no por el identificador', () => {
+  const email = buildCustomerEmail(orderPayload, 'ana@example.com', glsOk);
+  assert.doesNotMatch(email.html, /resolado_completo|pie_de_gato|vibram_xs_grip2/);
+  assert.match(email.html, /Resolado completo · Pie de gato · Vibram XS Grip2 ×2/);
+});
+
+test('los emails traducen país y método de pago en vez de enseñar el código', () => {
+  const email = buildOwnerEmail({ ...orderPayload, metodoPago: 'tarjeta' }, 'owner@example.com', glsOk);
+  assert.match(email.html, /España/);
+  assert.match(email.html, /Tarjeta/);
+});
+
+test('buildOwnerEmail usa la descripción ya montada cuando el pedido viene de Stripe', () => {
+  const email = buildOwnerEmail(
+    {
+      ...orderPayload,
+      carrito: [
+        {
+          descripcion: 'Resolado completo · Pie de gato · Vibram XS Grip2',
+          cantidad: 2,
+          precioUnitario: 35,
+          precioSubtotal: 70,
+        },
+      ],
+    },
+    'owner@example.com',
+    glsOk,
+  );
+  assert.match(email.html, /Resolado completo · Pie de gato · Vibram XS Grip2 ×2/);
+});
+
+// --- Puntos abiertos las 24 h -------------------------------------------------------------
+
+test('buildCustomerEmail colapsa a "24 h" el día que GLS parte en dos tramos pegados', () => {
+  const punto24h = {
+    ...dropOffLocation,
+    openingDays: [
+      {
+        weekday: 'MON',
+        hours: [
+          { openingTime: '00:00', closingTime: '14:00' },
+          { openingTime: '14:00', closingTime: '23:59' },
+        ],
+      },
+      { weekday: 'TUE', hours: [{ openingTime: '09:30', closingTime: '13:30' }] },
+    ],
+  };
+  const email = buildCustomerEmail(orderPayload, 'ana@example.com', {
+    ...glsOk,
+    dropOffLocation: punto24h,
+  });
+  assert.match(email.html, /Lunes: Abierto 24 h/);
+  assert.doesNotMatch(email.html, /00:00–14:00/);
+  // Un horario normal se sigue enseñando entero.
+  assert.match(email.html, /Martes: 09:30–13:30/);
 });

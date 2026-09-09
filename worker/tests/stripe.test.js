@@ -43,7 +43,10 @@ test('buildCheckoutSessionParams genera un line_item por línea del carrito más
   assert.equal(params.get('customer_email'), 'ana@example.com');
   assert.equal(params.get('line_items[0][quantity]'), '2');
   assert.equal(params.get('line_items[0][price_data][unit_amount]'), '3500');
-  assert.match(params.get('line_items[0][price_data][product_data][name]'), /resolado_completo/);
+  assert.equal(
+    params.get('line_items[0][price_data][product_data][name]'),
+    'Resolado completo · Pie de gato · Vibram XS Grip2',
+  );
   assert.equal(params.get('line_items[1][quantity]'), '1');
   assert.equal(params.get('line_items[1][price_data][unit_amount]'), '500');
   assert.equal(params.get('line_items[1][price_data][product_data][name]'), 'Envío GLS');
@@ -71,7 +74,7 @@ test('buildCarritoFromLineItems reconstruye el carrito desde los line_items de S
     line_items: {
       data: [
         {
-          description: 'resolado_completo (pie_de_gato) (vibram_xs_grip2)',
+          description: 'Resolado completo · Pie de gato · Vibram XS Grip2',
           quantity: 2,
           amount_total: 7000,
           price: { unit_amount: 3500 },
@@ -87,7 +90,7 @@ test('buildCarritoFromLineItems reconstruye el carrito desde los line_items de S
   };
   const carrito = buildCarritoFromLineItems(session);
   assert.equal(carrito.length, 1);
-  assert.equal(carrito[0].descripcion, 'resolado_completo (pie_de_gato) (vibram_xs_grip2)');
+  assert.equal(carrito[0].descripcion, 'Resolado completo · Pie de gato · Vibram XS Grip2');
   assert.equal(carrito[0].cantidad, 2);
   assert.equal(carrito[0].precioUnitario, 35);
   assert.equal(carrito[0].precioSubtotal, 70);
@@ -99,7 +102,7 @@ test('orderPayloadFromSession reconstruye el pedido con la dirección desglosada
     line_items: {
       data: [
         {
-          description: 'resolado_completo (pie_de_gato) (vibram_xs_grip2)',
+          description: 'Resolado completo · Pie de gato · Vibram XS Grip2',
           quantity: 2,
           amount_total: 7000,
           price: { unit_amount: 3500 },
@@ -191,4 +194,27 @@ test('retrieveStripeSession pide la sesión con los line_items expandidos', asyn
   };
   const result = await retrieveStripeSession('sess_123', 'sk_test_123', fakeFetch);
   assert.equal(result.payment_status, 'paid');
+});
+
+test('buildCheckoutSessionParams nombra el producto sin identificadores internos', () => {
+  // Este nombre lo lee el cliente en la página de pago de Stripe mientras teclea la tarjeta:
+  // es el sitio donde un `resolado_completo (pie_de_gato)` hace más daño.
+  const params = buildCheckoutSessionParams(
+    {
+      ...orderPayload,
+      carrito: [
+        { tipoCalzado: 'bota', servicio: 'puntera', material: null, cantidad: 1, precioUnitario: 15, precioSubtotal: 15 },
+        { tipoCalzado: 'pie_de_gato', servicio: 'media_suela', material: 'vibram_xs_grip_edge', cantidad: 1, precioUnitario: 40, precioSubtotal: 40 },
+      ],
+    },
+    'https://griplaseu.es',
+  );
+  assert.equal(params.get('line_items[0][price_data][product_data][name]'), 'Puntera · Bota');
+  assert.equal(
+    params.get('line_items[1][price_data][product_data][name]'),
+    'Media suela · Pie de gato · Vibram XS Grip Edge',
+  );
+  for (const [clave, valor] of params.entries()) {
+    if (clave.endsWith('[product_data][name]')) assert.doesNotMatch(valor, /_/);
+  }
 });

@@ -8,20 +8,48 @@ import { resolverPunto } from './punto-gls.js';
 const lang = localStorage.getItem('lang') || 'ca';
 const titleEl = document.getElementById('gracias-title');
 const messageEl = document.getElementById('gracias-message');
-const orderIdEl = document.getElementById('gracias-order-id');
 const summaryEl = document.getElementById('gracias-summary');
 
-function render(titleKey, messageKey, orderId = '', summaryLines = [], gls = null) {
+// El recibo se pinta con createElement/textContent, nunca con innerHTML: aquí dentro hay
+// nombre, dirección y teléfono tal y como los tecleó el cliente.
+function crearFila(fila) {
+  const contenedor = document.createElement('div');
+  contenedor.className = `recibo-fila recibo-fila--${fila.tipo}`;
+
+  const etiqueta = document.createElement('dt');
+  etiqueta.className = 'recibo-etiqueta';
+  etiqueta.textContent = fila.etiqueta;
+
+  const valor = document.createElement('dd');
+  valor.className = 'recibo-valor';
+  valor.textContent = fila.valor;
+
+  contenedor.append(etiqueta, valor);
+  return contenedor;
+}
+
+function crearSeccion(seccion) {
+  const bloque = document.createElement('div');
+  bloque.className = 'recibo-seccion';
+
+  const titulo = document.createElement('h3');
+  titulo.className = 'recibo-seccion-title';
+  titulo.textContent = seccion.titulo;
+
+  const filas = document.createElement('dl');
+  filas.className = 'recibo-filas';
+  filas.append(...seccion.filas.map(crearFila));
+
+  bloque.append(titulo, filas);
+  return bloque;
+}
+
+// La referencia del pedido es la primera fila del recibo y no se repite como titular; la de la
+// devolución GLS la pinta renderGls(), pegada al aviso de la etiqueta.
+function render(titleKey, messageKey, secciones = [], gls = null) {
   titleEl.textContent = t(lang, titleKey);
   messageEl.textContent = t(lang, messageKey);
-  orderIdEl.textContent = orderId;
-  summaryEl.replaceChildren(
-    ...summaryLines.map((linea) => {
-      const li = document.createElement('li');
-      li.textContent = linea;
-      return li;
-    }),
-  );
+  summaryEl.replaceChildren(...secciones.map(crearSeccion));
   renderGls(gls);
 }
 
@@ -106,7 +134,10 @@ function renderGls(gls) {
 
     // El buscador se pinta siempre: aunque GLS no haya devuelto punto —o haya devuelto uno
     // que no admite devoluciones—, el cliente sigue necesitando saber dónde dejar el paquete.
-    const { punto, noAdmiteDevoluciones } = resolverPunto(gls.dropOffLocation);
+    const { punto, noAdmiteDevoluciones } = resolverPunto(
+      gls.dropOffLocation,
+      t(lang, 'gls_punto_24h'),
+    );
     if (punto) contenedor.append(crearBloquePunto(punto));
     else if (noAdmiteDevoluciones) contenedor.append(crearAvisoSinDevoluciones());
     contenedor.append(crearEnlaceBuscador());
@@ -144,8 +175,8 @@ async function run() {
   try {
     const result = await confirmPayment(API_BASE_URL, sessionId);
     if (result.paid) {
-      const summaryLines = buildOrderSummary({ ...result.order, gls: result.gls }).lineas;
-      render('gracias_title', 'gracias_paid', result.orderId, summaryLines, result.gls);
+      const { secciones } = buildOrderSummary(result.order, lang);
+      render('gracias_title', 'gracias_paid', secciones, result.gls);
     } else {
       render('gracias_title', 'gracias_not_paid');
     }

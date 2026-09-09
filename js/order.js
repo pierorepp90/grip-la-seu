@@ -1,3 +1,5 @@
+import { t } from './i18n.js';
+
 export function generateOrderId(now = new Date(), randomFn = Math.random) {
   const datePart = now.toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
   const randomPart = Math.floor(randomFn() * 36 ** 4)
@@ -7,53 +9,148 @@ export function generateOrderId(now = new Date(), randomFn = Math.random) {
   return `GLS-${datePart}-${randomPart}`;
 }
 
-function formatearLineaCarrito(linea) {
-  const subtotal = linea.precioSubtotal.toFixed(2);
-  if (linea.descripcion) {
-    return `${linea.descripcion} ×${linea.cantidad} — ${subtotal}€`;
-  }
-  const variante = linea.material ? ` (${linea.material})` : '';
-  return `${linea.tipoCalzado} · ${linea.servicio}${variante} ×${linea.cantidad} — ${subtotal}€`;
+// Nombres del catálogo. Las claves ya existen en js/i18n.js y son las mismas que pinta el
+// formulario, así que el recibo llama a cada servicio exactamente igual que la calculadora.
+//
+// worker/src/catalogo.js replica esto a mano en castellano: worker/ se despliega solo y no
+// puede importar de js/. Si aquí se añade un servicio, un tipo de calzado o un material, hay
+// que añadirlo allí también o el nombre del producto en Stripe y el email se quedarán atrás.
+const CLAVES_SERVICIO = {
+  resolado_completo: 'service_resolado_completo_title',
+  media_suela: 'service_media_suela_title',
+  puntera: 'service_puntera_title',
+};
+
+const CLAVES_TIPO_CALZADO = {
+  bota: 'tipo_bota',
+  pie_de_gato: 'tipo_pie_de_gato',
+};
+
+const CLAVES_MATERIAL = {
+  vibram_xs_grip2: 'material_vibram_xs_grip2',
+  vibram_xs_grip_edge: 'material_vibram_xs_grip_edge',
+};
+
+const CLAVES_PAIS = {
+  ES: 'pais_es',
+  PT: 'pais_pt',
+};
+
+const CLAVES_METODO_PAGO = {
+  tarjeta: 'pago_tarjeta',
+  bizum: 'pago_bizum',
+  transferencia: 'pago_transferencia',
+};
+
+// Red de seguridad, no traducción. t() devuelve la clave cuando no la encuentra, así que
+// traducir a ciegas un identificador desconocido pintaría "service_lo_que_sea_title" en la
+// cara del cliente. Antes de traducir se comprueba que la clave existe; si no, se humaniza.
+export function humanizarIdentificador(valor) {
+  if (!valor) return '';
+  const texto = String(valor).replace(/_/g, ' ').trim();
+  if (!texto) return '';
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
-export function direccionLineas(direccion) {
+function traducirIdentificador(claves, identificador, lang) {
+  if (!identificador) return '';
+  return Object.hasOwn(claves, identificador)
+    ? t(lang, claves[identificador])
+    : humanizarIdentificador(identificador);
+}
+
+// Dos formas de línea conviven en el carrito y las dos tienen que seguir funcionando: la ruta
+// de bizum/transferencia manda la línea estructurada, y la de tarjeta la reconstruye desde
+// Stripe con la descripción ya montada por el Worker. Esa descripción se pinta tal cual: ya
+// está en palabras, y el Worker no sabe en qué idioma navega el cliente.
+export function describirLineaCarrito(linea, lang) {
+  if (linea.descripcion) return linea.descripcion;
   return [
-    `Dirección: ${direccion.calle} ${direccion.numero}`,
-    `Código postal: ${direccion.codigoPostal}`,
-    `Ciudad: ${direccion.ciudad}`,
-    `País: ${direccion.pais}`,
-  ];
+    traducirIdentificador(CLAVES_SERVICIO, linea.servicio, lang),
+    traducirIdentificador(CLAVES_TIPO_CALZADO, linea.tipoCalzado, lang),
+    traducirIdentificador(CLAVES_MATERIAL, linea.material, lang),
+  ]
+    .filter(Boolean)
+    .join(' · ');
 }
 
-export function buildOrderSummary(orderPayload) {
-  const {
-    orderId,
-    carrito,
-    transporte,
-    precioTotal,
-    nombre,
-    direccion,
-    telefono,
-    email,
-    metodoPago,
-    gls,
-  } = orderPayload;
+export function nombrePais(codigo, lang) {
+  if (!codigo) return '';
+  return Object.hasOwn(CLAVES_PAIS, codigo) ? t(lang, CLAVES_PAIS[codigo]) : String(codigo);
+}
 
-  const lineas = [`Referencia: ${orderId}`, ...carrito.map(formatearLineaCarrito)];
-  if (transporte > 0) {
-    lineas.push(`Envío GLS: ${transporte.toFixed(2)}€`);
-  }
-  lineas.push(
-    `Total: ${precioTotal.toFixed(2)}€`,
-    `Nombre: ${nombre}`,
-    ...direccionLineas(direccion),
-    `Teléfono: ${telefono}`,
-    `Email: ${email}`,
-    `Pago: ${metodoPago}`,
+export function nombreMetodoPago(metodo, lang) {
+  return traducirIdentificador(CLAVES_METODO_PAGO, metodo, lang);
+}
+
+function euros(importe) {
+  return `${importe.toFixed(2)}€`;
+}
+
+function fila(etiqueta, valor, tipo = 'dato') {
+  return { etiqueta, valor, tipo };
+}
+
+// El artículo ocupa la columna izquierda del recibo pero no es una etiqueta: es contenido, y
+// se pinta con el mismo peso que el precio. De ahí el tipo, que los tres sitios que pintan el
+// recibo usan para elegir la clase.
+export function formatearLineaCarrito(linea, lang) {
+  return fila(
+    `${describirLineaCarrito(linea, lang)} ×${linea.cantidad}`,
+    euros(linea.precioSubtotal),
+    'articulo',
   );
-  if (gls && gls.ok && gls.trackId) {
-    lineas.push(`Devolución GLS: ${gls.trackId}`);
-  }
+}
 
-  return { orderId, lineas };
+function seccionPedido(orderPayload, lang) {
+  const { orderId, carrito, transporte, precioTotal } = orderPayload;
+  const filas = [
+    fila(t(lang, 'recibo_referencia_label'), orderId),
+    ...carrito.map((linea) => formatearLineaCarrito(linea, lang)),
+  ];
+  if (transporte > 0) {
+    filas.push(fila(t(lang, 'envio_gls_label'), euros(transporte)));
+  }
+  filas.push(fila(t(lang, 'precio_total_label'), euros(precioTotal), 'total'));
+  return { titulo: t(lang, 'recibo_pedido_title'), filas };
+}
+
+function seccionEntrega(orderPayload, lang) {
+  const { nombre, direccion, telefono, email } = orderPayload;
+  return {
+    titulo: t(lang, 'recibo_entrega_title'),
+    filas: [
+      fila(t(lang, 'nombre_label'), nombre),
+      fila(t(lang, 'direccion_label'), `${direccion.calle} ${direccion.numero}`),
+      fila(t(lang, 'cp_label'), direccion.codigoPostal),
+      fila(t(lang, 'ciudad_label'), direccion.ciudad),
+      fila(t(lang, 'pais_label'), nombrePais(direccion.pais, lang)),
+      fila(t(lang, 'telefono_label'), telefono),
+      fila(t(lang, 'email_label'), email),
+    ],
+  };
+}
+
+function seccionPago(orderPayload, lang) {
+  return {
+    titulo: t(lang, 'recibo_pago_title'),
+    filas: [fila(t(lang, 'pago_label'), nombreMetodoPago(orderPayload.metodoPago, lang))],
+  };
+}
+
+// El recibo es una lista de secciones de filas etiqueta/valor, no un montón de cadenas planas:
+// los tres sitios que lo pintan (el modal de index.html, js/gracias.js y el email del Worker)
+// necesitan las dos columnas por separado para poder maquetarlas.
+//
+// La referencia de la devolución GLS NO sale de aquí: la pinta el bloque de GLS, pegada al
+// aviso de la etiqueta y al punto de entrega, que es donde el cliente la busca.
+export function buildOrderSummary(orderPayload, lang) {
+  return {
+    orderId: orderPayload.orderId,
+    secciones: [
+      seccionPedido(orderPayload, lang),
+      seccionEntrega(orderPayload, lang),
+      seccionPago(orderPayload, lang),
+    ],
+  };
 }

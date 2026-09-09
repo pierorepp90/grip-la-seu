@@ -1,6 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { generateOrderId, buildOrderSummary } from '../js/order.js';
+import {
+  generateOrderId,
+  humanizarIdentificador,
+  describirLineaCarrito,
+  formatearLineaCarrito,
+  buildOrderSummary,
+} from '../js/order.js';
 
 test('generateOrderId incluye fecha y es determinista con inyección de reloj/random', () => {
   const fixedDate = new Date('2026-08-13T12:00:00.000Z');
@@ -23,122 +29,209 @@ const direccion = {
   pais: 'ES',
 };
 
-test('buildOrderSummary detalla el carrito, el envío y la dirección desglosada', () => {
-  const orderPayload = {
-    orderId: 'GLS-TEST-0001',
-    carrito: [
+const lineaEstructurada = {
+  tipoCalzado: 'pie_de_gato',
+  servicio: 'resolado_completo',
+  material: 'vibram_xs_grip2',
+  cantidad: 2,
+  precioUnitario: 35,
+  precioSubtotal: 70,
+};
+
+// --- Nombres del catálogo ------------------------------------------------------------------
+
+test('describirLineaCarrito traduce servicio, tipo de calzado y material a cada idioma', () => {
+  assert.equal(
+    describirLineaCarrito(lineaEstructurada, 'es'),
+    'Resolado completo · Pie de gato · Vibram XS Grip2',
+  );
+  assert.equal(
+    describirLineaCarrito(lineaEstructurada, 'ca'),
+    'Ressolat complet · Peu de gat · Vibram XS Grip2',
+  );
+  assert.equal(
+    describirLineaCarrito(lineaEstructurada, 'en'),
+    'Full resole · Climbing shoe · Vibram XS Grip2',
+  );
+  assert.equal(
+    describirLineaCarrito(lineaEstructurada, 'pt'),
+    'Resolamento completo · Pé de gato · Vibram XS Grip2',
+  );
+});
+
+test('describirLineaCarrito omite el material cuando la línea no lo lleva', () => {
+  assert.equal(
+    describirLineaCarrito({ servicio: 'puntera', tipoCalzado: 'bota', material: null }, 'es'),
+    'Puntera · Bota',
+  );
+});
+
+test('describirLineaCarrito devuelve tal cual la descripción reconstruida desde Stripe', () => {
+  // La ruta de tarjeta recompone la línea desde los line_items de Stripe: ahí la descripción
+  // ya viene montada por el Worker y en ningún idioma hay que volver a tocarla.
+  const linea = { descripcion: 'Resolado completo · Pie de gato · Vibram XS Grip2', cantidad: 1 };
+  for (const lang of ['ca', 'es', 'en', 'pt']) {
+    assert.equal(
+      describirLineaCarrito(linea, lang),
+      'Resolado completo · Pie de gato · Vibram XS Grip2',
+    );
+  }
+});
+
+test('describirLineaCarrito no deja escapar identificadores que falten en el diccionario', () => {
+  const descripcion = describirLineaCarrito(
+    { servicio: 'servicio_nuevo', tipoCalzado: 'zapatilla_trail', material: null },
+    'es',
+  );
+  assert.doesNotMatch(descripcion, /_/);
+  assert.equal(descripcion, 'Servicio nuevo · Zapatilla trail');
+});
+
+test('humanizarIdentificador convierte guiones bajos en palabras', () => {
+  assert.equal(humanizarIdentificador('media_suela'), 'Media suela');
+  assert.equal(humanizarIdentificador(''), '');
+  assert.equal(humanizarIdentificador(null), '');
+});
+
+// --- Filas del carrito ---------------------------------------------------------------------
+
+test('formatearLineaCarrito devuelve la fila de dos columnas de una línea estructurada', () => {
+  assert.deepEqual(formatearLineaCarrito(lineaEstructurada, 'es'), {
+    etiqueta: 'Resolado completo · Pie de gato · Vibram XS Grip2 ×2',
+    valor: '70.00€',
+    tipo: 'articulo',
+  });
+});
+
+test('formatearLineaCarrito devuelve la fila de una línea reconstruida desde Stripe', () => {
+  assert.deepEqual(
+    formatearLineaCarrito(
       {
-        tipoCalzado: 'pie_de_gato',
-        servicio: 'resolado_completo',
-        material: 'vibram_xs_grip2',
-        cantidad: 2,
-        precioUnitario: 35,
-        precioSubtotal: 70,
-      },
-      {
-        tipoCalzado: 'bota',
-        servicio: 'puntera',
-        material: null,
+        descripcion: 'Resolado completo · Pie de gato · Vibram XS Grip2',
         cantidad: 1,
-        precioUnitario: 15,
-        precioSubtotal: 15,
+        precioUnitario: 44,
+        precioSubtotal: 44,
       },
-    ],
-    transporte: 5,
-    precioTotal: 90,
-    nombre: 'Ana Pérez',
-    direccion,
-    telefono: '+34612345678',
-    email: 'ana@example.com',
-    metodoPago: 'bizum',
-  };
-  const summary = buildOrderSummary(orderPayload);
+      'ca',
+    ),
+    {
+      etiqueta: 'Resolado completo · Pie de gato · Vibram XS Grip2 ×1',
+      valor: '44.00€',
+      tipo: 'articulo',
+    },
+  );
+});
+
+// --- Resumen del pedido --------------------------------------------------------------------
+
+const orderPayload = {
+  orderId: 'GLS-TEST-0001',
+  carrito: [
+    lineaEstructurada,
+    {
+      tipoCalzado: 'bota',
+      servicio: 'puntera',
+      material: null,
+      cantidad: 1,
+      precioUnitario: 15,
+      precioSubtotal: 15,
+    },
+  ],
+  transporte: 5,
+  precioTotal: 90,
+  nombre: 'Ana Pérez',
+  direccion,
+  telefono: '+34612345678',
+  email: 'ana@example.com',
+  metodoPago: 'bizum',
+};
+
+function filasDe(summary) {
+  return summary.secciones.flatMap((seccion) => seccion.filas);
+}
+
+function valorDe(summary, etiqueta) {
+  const fila = filasDe(summary).find((candidata) => candidata.etiqueta === etiqueta);
+  return fila ? fila.valor : undefined;
+}
+
+test('buildOrderSummary agrupa el recibo en pedido, entrega y pago', () => {
+  const summary = buildOrderSummary(orderPayload, 'es');
   assert.equal(summary.orderId, 'GLS-TEST-0001');
-  const joined = summary.lineas.join(' | ');
-  assert.match(joined, /pie_de_gato · resolado_completo \(vibram_xs_grip2\) ×2 — 70\.00€/);
-  assert.match(joined, /bota · puntera ×1 — 15\.00€/);
-  assert.match(joined, /Envío GLS: 5\.00€/);
-  assert.match(joined, /Total: 90\.00€/);
-  assert.match(joined, /Ana Pérez/);
-  assert.match(joined, /Dirección: Carrer Major 12/);
-  assert.match(joined, /Código postal: 25700/);
-  assert.match(joined, /Ciudad: La Seu d'Urgell/);
-  assert.match(joined, /País: ES/);
-  assert.match(joined, /bizum/);
+  assert.deepEqual(
+    summary.secciones.map((seccion) => seccion.titulo),
+    ['Tu pedido', 'Entrega', 'Pago'],
+  );
+});
+
+test('buildOrderSummary detalla el carrito, el envío y el total en la sección del pedido', () => {
+  const [pedido] = buildOrderSummary(orderPayload, 'es').secciones;
+  assert.deepEqual(pedido.filas, [
+    { etiqueta: 'Referencia', valor: 'GLS-TEST-0001', tipo: 'dato' },
+    {
+      etiqueta: 'Resolado completo · Pie de gato · Vibram XS Grip2 ×2',
+      valor: '70.00€',
+      tipo: 'articulo',
+    },
+    { etiqueta: 'Puntera · Bota ×1', valor: '15.00€', tipo: 'articulo' },
+    { etiqueta: 'Envío GLS', valor: '5.00€', tipo: 'dato' },
+    { etiqueta: 'Precio total', valor: '90.00€', tipo: 'total' },
+  ]);
+});
+
+test('buildOrderSummary desglosa la dirección y traduce el país', () => {
+  const summary = buildOrderSummary(orderPayload, 'es');
+  assert.equal(valorDe(summary, 'Nombre'), 'Ana Pérez');
+  assert.equal(valorDe(summary, 'Dirección'), 'Carrer Major 12');
+  assert.equal(valorDe(summary, 'Código postal'), '25700');
+  assert.equal(valorDe(summary, 'Ciudad'), "La Seu d'Urgell");
+  assert.equal(valorDe(summary, 'País'), 'España');
+  assert.equal(valorDe(summary, 'Teléfono'), '+34612345678');
+  assert.equal(valorDe(summary, 'Email'), 'ana@example.com');
+});
+
+test('buildOrderSummary traduce el método de pago en lugar del identificador', () => {
+  assert.equal(valorDe(buildOrderSummary(orderPayload, 'es'), 'Método de pago'), 'Bizum');
+  assert.equal(
+    valorDe(buildOrderSummary({ ...orderPayload, metodoPago: 'tarjeta' }, 'en'), 'Payment method'),
+    'Card',
+  );
+});
+
+test('buildOrderSummary traduce las etiquetas al idioma activo', () => {
+  const summary = buildOrderSummary(orderPayload, 'ca');
+  assert.deepEqual(
+    summary.secciones.map((seccion) => seccion.titulo),
+    ['La teva comanda', 'Entrega', 'Pagament'],
+  );
+  assert.equal(valorDe(summary, 'Referència'), 'GLS-TEST-0001');
+  assert.equal(valorDe(summary, 'Ciutat'), "La Seu d'Urgell");
+  assert.equal(valorDe(summary, 'País'), 'Espanya');
 });
 
 test('buildOrderSummary omite la línea de envío cuando el transporte es 0', () => {
-  const summary = buildOrderSummary({
-    orderId: 'GLS-TEST-0002',
-    carrito: [
-      {
-        tipoCalzado: 'bota',
-        servicio: 'puntera',
-        material: null,
-        cantidad: 1,
-        precioUnitario: 15,
-        precioSubtotal: 15,
-      },
-    ],
-    transporte: 0,
-    precioTotal: 15,
-    nombre: 'Ana Pérez',
-    direccion,
-    telefono: '+34612345678',
-    email: 'ana@example.com',
-    metodoPago: 'tarjeta',
-  });
-  const joined = summary.lineas.join(' | ');
-  assert.doesNotMatch(joined, /Envío GLS/);
-  assert.match(joined, /Total: 15\.00€/);
+  const summary = buildOrderSummary({ ...orderPayload, transporte: 0, precioTotal: 85 }, 'es');
+  assert.equal(valorDe(summary, 'Envío GLS'), undefined);
+  assert.equal(valorDe(summary, 'Precio total'), '85.00€');
 });
 
-test('buildOrderSummary añade la referencia de la devolución GLS cuando existe', () => {
-  const base = {
-    orderId: 'GLS-TEST-0003',
-    carrito: [],
-    transporte: 0,
-    precioTotal: 0,
-    nombre: 'Ana Pérez',
-    direccion,
-    telefono: '+34612345678',
-    email: 'ana@example.com',
-    metodoPago: 'bizum',
-  };
-  const conGls = buildOrderSummary({
-    ...base,
-    gls: { ok: true, returnOrderId: 'RET-99', trackId: 'Z79MB8U2' },
-  });
-  assert.match(conGls.lineas.join(' | '), /Devolución GLS: Z79MB8U2/);
-
-  const sinGls = buildOrderSummary({ ...base, gls: { ok: false, error: 'timeout' } });
-  assert.doesNotMatch(sinGls.lineas.join(' | '), /Devolución GLS/);
-
-  const ausente = buildOrderSummary(base);
-  assert.doesNotMatch(ausente.lineas.join(' | '), /Devolución GLS/);
-});
-
-test('buildOrderSummary usa la descripción reconstruida desde Stripe cuando no hay campos estructurados', () => {
-  const summary = buildOrderSummary({
-    orderId: 'GLS-TEST-0004',
-    carrito: [
-      {
-        descripcion: 'resolado_completo (pie_de_gato) (vibram_xs_grip2)',
-        cantidad: 2,
-        precioUnitario: 35,
-        precioSubtotal: 70,
-      },
-    ],
-    transporte: 0,
-    precioTotal: 70,
-    nombre: 'Ana Pérez',
-    direccion,
-    telefono: '+34612345678',
-    email: 'ana@example.com',
-    metodoPago: 'tarjeta',
-  });
-  assert.match(
-    summary.lineas.join(' | '),
-    /resolado_completo \(pie_de_gato\) \(vibram_xs_grip2\) ×2 — 70\.00€/,
+test('buildOrderSummary no repite la referencia de la devolución GLS', () => {
+  // La pinta el bloque de GLS, justo al lado del aviso de la etiqueta y del punto de entrega:
+  // repetirla aquí era la segunda de las dos referencias duplicadas del recibo.
+  const summary = buildOrderSummary(
+    { ...orderPayload, gls: { ok: true, returnOrderId: 'RET-99', trackId: 'Z79MB8U2' } },
+    'es',
   );
+  assert.doesNotMatch(JSON.stringify(summary), /Z79MB8U2/);
+});
+
+test('buildOrderSummary no deja ningún identificador interno en el recibo', () => {
+  for (const lang of ['ca', 'es', 'en', 'pt']) {
+    const summary = buildOrderSummary({ ...orderPayload, metodoPago: 'tarjeta' }, lang);
+    for (const fila of filasDe(summary)) {
+      // El orderId lleva guiones, no guiones bajos; nada más debería llevarlos.
+      assert.doesNotMatch(fila.etiqueta, /_/, `etiqueta cruda: ${fila.etiqueta}`);
+      assert.doesNotMatch(fila.valor, /_/, `valor crudo: ${fila.valor}`);
+    }
+  }
 });

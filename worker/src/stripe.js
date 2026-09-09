@@ -1,3 +1,5 @@
+import { describirLinea } from './catalogo.js';
+
 const ENVIO_GLS_NOMBRE = 'Envío GLS';
 
 export function buildCheckoutSessionParams(orderPayload, siteUrl) {
@@ -11,17 +13,13 @@ export function buildCheckoutSessionParams(orderPayload, siteUrl) {
   params.set('cancel_url', `${siteUrl}/?pago=cancelado`);
 
   carrito.forEach((linea, index) => {
-    const variante = linea.material ? ` (${linea.material})` : '';
     params.set(`line_items[${index}][quantity]`, String(linea.cantidad));
     params.set(`line_items[${index}][price_data][currency]`, 'eur');
     params.set(
       `line_items[${index}][price_data][unit_amount]`,
       String(Math.round(linea.precioUnitario * 100)),
     );
-    params.set(
-      `line_items[${index}][price_data][product_data][name]`,
-      `${linea.servicio} (${linea.tipoCalzado})${variante}`,
-    );
+    params.set(`line_items[${index}][price_data][product_data][name]`, describirLinea(linea));
   });
 
   if (transporte > 0) {

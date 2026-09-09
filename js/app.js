@@ -36,7 +36,7 @@ document.addEventListener('alpine:init', () => {
     submitting: false,
     errorMsg: '',
     orderId: '',
-    summaryLines: [],
+    summarySections: [],
 
     // Paso 1 — carrito
     tipoCalzado: 'pie_de_gato',
@@ -225,7 +225,8 @@ document.addEventListener('alpine:init', () => {
     // email del worker): o el punto, o el aviso de que GLS asigno uno que no admite
     // devoluciones, o nada. El enlace al buscador se pinta siempre, al margen de esto.
     get puntoResuelto() {
-      return resolverPunto(this.gls?.dropOffLocation);
+      const lang = Alpine.store('i18n').lang;
+      return resolverPunto(this.gls?.dropOffLocation, t(lang, 'gls_punto_24h'));
     },
 
     get punto() {
@@ -255,7 +256,7 @@ document.addEventListener('alpine:init', () => {
         const payload = this.buildOrderPayload();
         const respuesta = await notifyOrder(API_BASE_URL, payload);
         this.gls = respuesta.gls ?? { ok: false };
-        this.summaryLines = buildOrderSummary({ ...payload, gls: this.gls }).lineas;
+        this.summarySections = buildOrderSummary(payload, Alpine.store('i18n').lang).secciones;
         this.success = true;
       } catch (error) {
         console.error(error);

@@ -59,12 +59,28 @@
           <div>
             <h2 x-text="$t('gracias_title')"></h2>
             <p x-text="$t('gracias_paid')"></p>
-            <p><strong x-text="orderId"></strong></p>
-            <ul class="point-list">
-              <template x-for="linea in summaryLines" :key="linea">
-                <li x-text="linea"></li>
+
+            <!-- El recibo: la referencia del pedido sale una sola vez, como primera fila de
+                 la seccion del pedido. La referencia de la devolucion GLS sale una sola vez
+                 tambien, en el bloque de GLS de aqui abajo. -->
+            <div class="recibo">
+              <template x-for="seccion in summarySections" :key="seccion.titulo">
+                <div class="recibo-seccion">
+                  <h3 class="recibo-seccion-title" x-text="seccion.titulo"></h3>
+                  <dl class="recibo-filas">
+                    <!-- Clave por posicion: dos lineas del carrito reconstruidas desde Stripe
+                         podrian traer la misma descripcion, y una clave por etiqueta haria
+                         desaparecer una de las dos sin avisar. -->
+                    <template x-for="(fila, indice) in seccion.filas" :key="seccion.titulo + '#' + indice">
+                      <div :class="'recibo-fila recibo-fila--' + fila.tipo">
+                        <dt class="recibo-etiqueta" x-text="fila.etiqueta"></dt>
+                        <dd class="recibo-valor" x-text="fila.valor"></dd>
+                      </div>
+                    </template>
+                  </dl>
+                </div>
               </template>
-            </ul>
+            </div>
 
             <template x-if="gls && gls.ok">
               <div class="gls-result">
@@ -188,7 +204,9 @@
                 <template x-for="linea in carrito" :key="linea.tipoCalzado + linea.servicio + linea.material">
                   <div class="cart-line">
                     <span class="cart-line-info">
-                      <span x-text="$t('tipo_' + linea.tipoCalzado) + ' · ' + $t('service_' + linea.servicio + '_title')"></span>
+                      <!-- Mismo orden que el recibo (servicio · tipo de calzado): la linea del
+                           carrito y la del pedido confirmado tienen que leerse igual. -->
+                      <span x-text="$t('service_' + linea.servicio + '_title') + ' · ' + $t('tipo_' + linea.tipoCalzado)"></span>
                       <span class="cart-line-variant" x-show="linea.material" x-text="linea.material ? $t('material_' + linea.material) : ''"></span>
                     </span>
                     <span class="cart-line-controls">
