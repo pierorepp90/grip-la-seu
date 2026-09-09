@@ -26,10 +26,10 @@ function glsHtmlPropietario(gls) {
   return `<li><strong>⚠️ No se pudo crear la devolución GLS automáticamente — el cliente ha recibido instrucciones manuales.</strong> Motivo: ${escapeHtml(gls?.error ?? 'desconocido')}</li>`;
 }
 
-// Punto de entrega que GLS asigna al crear la devolución. El formateo está duplicado a
-// propósito de js/punto-gls.js: worker/ se despliega solo (wrangler, su propio package.json)
-// y no puede depender de la carpeta js/ del sitio estático. Si cambian las reglas de formato,
-// hay que tocar los dos ficheros.
+// Punto de entrega que GLS asigna al crear la devolución. El formateo y la regla de qué punto
+// es utilizable están duplicados a propósito de js/punto-gls.js: worker/ se despliega solo
+// (wrangler, su propio package.json) y no puede depender de la carpeta js/ del sitio estático.
+// Si cambian las reglas de formato o de capacidades, hay que tocar los dos ficheros.
 const BUSCADOR_GLS_URL = 'https://www.gls-spain.es/es/parcel-shops/';
 
 const DIAS_ES = {
@@ -51,9 +51,29 @@ function formatearDistancia(km) {
   return `${(metros / 1000).toFixed(1)} km`;
 }
 
+// Espejo de aceptaDevoluciones() en js/punto-gls.js. GLS asigna a veces un punto que sus
+// propios datos declaran incapaz de aceptar devoluciones (verificado en producción con un
+// locker de Castelldefels). Se decide por capacidades, no por `type`, y se exige la 'Y'
+// literal: sin el dato, el punto se descarta.
+function aceptaDevoluciones(punto) {
+  const capacidades = punto?.parcelHandlingRestriction;
+  if (!capacidades) return false;
+  return capacidades.offersReturnDropOff === 'Y' && capacidades.offersPrepaidParcelDropOff === 'Y';
+}
+
+// El email es solo en castellano por diseño; el equivalente traducido de este aviso vive en
+// js/i18n.js bajo la clave gls_punto_no_devoluciones.
+const AVISO_SIN_DEVOLUCIONES =
+  '<p>El punto más cercano que ha asignado GLS no admite devoluciones. Elige otro en el ' +
+  'buscador de puntos GLS.</p>';
+
 // Todo lo que hay aquí dentro viene de la API de GLS, así que todo pasa por escapeHtml.
 function puntoHtml(punto) {
   if (!punto || !punto.name) return '';
+
+  // Del punto rechazado no sale ni un dato al email: no queremos que nadie camine hasta un
+  // sitio que le va a rechazar el paquete.
+  if (!aceptaDevoluciones(punto)) return AVISO_SIN_DEVOLUCIONES;
 
   const direccion = punto.address ?? {};
   const localidad = [direccion.zipCode, direccion.city].filter(Boolean).join(' ');

@@ -99,6 +99,13 @@
                   </div>
                 </template>
 
+                <!-- GLS a veces asigna un punto que sus propios datos declaran incapaz de
+                     aceptar devoluciones. Ese punto no se pinta: solo el aviso y el enlace
+                     al buscador, que ya esta aqui debajo. -->
+                <template x-if="puntoNoAdmiteDevoluciones">
+                  <p class="punto-aviso" x-text="$t('gls_punto_no_devoluciones')"></p>
+                </template>
+
                 <a class="punto-otros" :href="buscadorUrl" target="_blank" rel="noopener" x-text="$t('gls_punto_otros')"></a>
               </div>
             </template>

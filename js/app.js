@@ -6,7 +6,7 @@ import { isNonEmpty, isValidPhone, isValidPostalCode, isValidEmail } from './val
 import { generateOrderId, buildOrderSummary } from './order.js';
 import { createCheckoutSession, notifyOrder } from './api.js';
 import { API_BASE_URL, GLS_PORTAL_URL, GLS_BUSCADOR_URL } from './config.js';
-import { formatearPunto } from './punto-gls.js';
+import { resolverPunto } from './punto-gls.js';
 
 document.addEventListener('alpine:init', () => {
   Alpine.store('i18n', {
@@ -221,8 +221,19 @@ document.addEventListener('alpine:init', () => {
       return this.gls?.portalUrl || GLS_PORTAL_URL;
     },
 
+    // Una sola decision para los tres sitios que pintan el punto (aqui, js/gracias.js y el
+    // email del worker): o el punto, o el aviso de que GLS asigno uno que no admite
+    // devoluciones, o nada. El enlace al buscador se pinta siempre, al margen de esto.
+    get puntoResuelto() {
+      return resolverPunto(this.gls?.dropOffLocation);
+    },
+
     get punto() {
-      return formatearPunto(this.gls?.dropOffLocation);
+      return this.puntoResuelto.punto;
+    },
+
+    get puntoNoAdmiteDevoluciones() {
+      return this.puntoResuelto.noAdmiteDevoluciones;
     },
 
     get buscadorUrl() {

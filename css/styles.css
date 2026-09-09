@@ -647,6 +647,16 @@ footer.site-footer {
   color: var(--color-slate);
 }
 
+/* Sustituye al bloque .punto-gls cuando GLS asigna un punto que no admite devoluciones:
+   mismo hueco, mismo peso visual, sin datos de un punto al que no hay que ir. */
+.punto-aviso {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-left: 3px solid var(--color-amber);
+  background: #fff7ea;
+  font-size: 0.9rem;
+}
+
 .punto-otros {
   display: inline-block;
   margin-top: 1rem;

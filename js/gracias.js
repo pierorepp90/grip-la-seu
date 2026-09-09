@@ -3,7 +3,7 @@ import { t } from './i18n.js';
 import { buildOrderSummary } from './order.js';
 import { confirmPayment } from './api.js';
 import { API_BASE_URL, GLS_PORTAL_URL, GLS_BUSCADOR_URL } from './config.js';
-import { formatearPunto } from './punto-gls.js';
+import { resolverPunto } from './punto-gls.js';
 
 const lang = localStorage.getItem('lang') || 'ca';
 const titleEl = document.getElementById('gracias-title');
@@ -70,6 +70,15 @@ function crearBloquePunto(punto) {
   return bloque;
 }
 
+// GLS a veces asigna un punto que sus propios datos declaran incapaz de aceptar devoluciones.
+// Ese punto no se pinta: ni nombre ni dirección, solo este aviso y el enlace al buscador.
+function crearAvisoSinDevoluciones() {
+  const aviso = document.createElement('p');
+  aviso.className = 'punto-aviso';
+  aviso.textContent = t(lang, 'gls_punto_no_devoluciones');
+  return aviso;
+}
+
 function crearEnlaceBuscador() {
   const enlace = document.createElement('a');
   enlace.className = 'punto-otros';
@@ -95,10 +104,11 @@ function renderGls(gls) {
     referencia.textContent = `${t(lang, 'gls_referencia')}: ${gls.trackId}`;
     contenedor.append(aviso, referencia);
 
-    // El buscador se pinta siempre: aunque GLS no haya devuelto punto, el cliente sigue
-    // necesitando saber dónde dejar el paquete.
-    const punto = formatearPunto(gls.dropOffLocation);
+    // El buscador se pinta siempre: aunque GLS no haya devuelto punto —o haya devuelto uno
+    // que no admite devoluciones—, el cliente sigue necesitando saber dónde dejar el paquete.
+    const { punto, noAdmiteDevoluciones } = resolverPunto(gls.dropOffLocation);
     if (punto) contenedor.append(crearBloquePunto(punto));
+    else if (noAdmiteDevoluciones) contenedor.append(crearAvisoSinDevoluciones());
     contenedor.append(crearEnlaceBuscador());
     return;
   }

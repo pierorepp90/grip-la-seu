@@ -32,6 +32,14 @@ const orderPayload = {
 // Forma real de dropOffLocation, copiada de una respuesta de producción de GLS.
 const dropOffLocation = {
   name: 'PS GO PACK EXPRESS',
+  type: 'SHOP',
+  parcelHandlingRestriction: {
+    offersParcelCollection: 'Y',
+    offersReturnDropOff: 'Y',
+    offersLabelPurchase: 'Y',
+    offersPrepaidParcelDropOff: 'Y',
+    offersLabellessDropOff: 'N',
+  },
   distance: 0.18218337,
   address: {
     street: 'Carrer dels Canonges 52 bajos',
@@ -48,6 +56,24 @@ const dropOffLocation = {
 
 const glsOk = { ok: true, returnOrderId: 'RET-99', trackId: 'Z79MB8U2', dropOffLocation };
 const glsOkSinPunto = { ...glsOk, dropOffLocation: null };
+
+// Punto real que GLS asignó a un pedido de Castelldefels: un locker que, segun sus propios
+// datos, no admite dejar devoluciones ni paquetes prepagados.
+const lockerSinDevoluciones = {
+  name: 'GLS Locker 24/7 MOEVE CASTELLDEFELS',
+  type: 'LOCKER',
+  parcelHandlingRestriction: {
+    offersParcelCollection: 'Y',
+    offersReturnDropOff: 'N',
+    offersLabelPurchase: 'N',
+    offersPrepaidParcelDropOff: 'N',
+    offersLabellessDropOff: 'N',
+  },
+  distance: 0.17339578,
+  address: { street: 'Carrer Granada 20', city: 'Castelldefels', zipCode: '08860', countryCode: 'ES' },
+  openingDays: [{ weekday: 'MON', hours: [{ openingTime: '00:00', closingTime: '14:00' }] }],
+};
+const glsOkPuntoSinDevoluciones = { ...glsOk, dropOffLocation: lockerSinDevoluciones };
 const glsFallo = {
   ok: false,
   error: 'HTTP 500',
@@ -290,6 +316,7 @@ test('buildCustomerEmail escapa el punto de entrega, que viene entero de la API 
     ...glsOk,
     dropOffLocation: {
       name: '<script>alert(1)</script>',
+      parcelHandlingRestriction: { offersReturnDropOff: 'Y', offersPrepaidParcelDropOff: 'Y' },
       distance: 0.5,
       address: {
         street: '<img src=x onerror=alert(1)>',
@@ -313,4 +340,34 @@ test('buildCustomerEmail escapa el punto de entrega, que viene entero de la API 
   assert(!email.html.includes('<s>09:30</s>'));
   assert(email.html.includes('&lt;script&gt;'));
   assert(email.html.includes('&lt;img'));
+  // El punto tiene que haberse pintado: si no, el test pasaria sin escapar nada.
+  assert.match(email.html, /Dónde dejar el paquete/);
+});
+
+test('buildCustomerEmail no enseña un punto que no admite devoluciones', () => {
+  const email = buildCustomerEmail(orderPayload, 'ana@example.com', glsOkPuntoSinDevoluciones);
+  // Ni el nombre ni las señas: mandar a alguien a un punto que le rechace el paquete es peor
+  // que decirle que busque uno.
+  assert.doesNotMatch(email.html, /MOEVE CASTELLDEFELS/);
+  assert.doesNotMatch(email.html, /Carrer Granada 20/);
+  assert.doesNotMatch(email.html, /Dónde dejar el paquete/);
+  assert.match(email.html, /no admite devoluciones/);
+  // La etiqueta sigue siendo válida y el buscador sigue siendo la salida.
+  assert.match(email.html, /Z79MB8U2/);
+  assert(email.html.includes('https://www.gls-spain.es/es/parcel-shops/'));
+});
+
+test('buildCustomerEmail tampoco enseña un punto sin parcelHandlingRestriction', () => {
+  const sinDatos = {
+    ...glsOk,
+    dropOffLocation: { name: 'PS SIN DATOS', address: { street: 'Carrer Major 1', city: 'Berga' } },
+  };
+  const email = buildCustomerEmail(orderPayload, 'ana@example.com', sinDatos);
+  assert.doesNotMatch(email.html, /PS SIN DATOS/);
+  assert.match(email.html, /no admite devoluciones/);
+});
+
+test('buildCustomerEmail solo avisa si GLS llegó a asignar un punto', () => {
+  const email = buildCustomerEmail(orderPayload, 'ana@example.com', glsOkSinPunto);
+  assert.doesNotMatch(email.html, /no admite devoluciones/);
 });

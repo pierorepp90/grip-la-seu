@@ -1,6 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { formatearDistancia, formatearPunto } from '../js/punto-gls.js';
+import {
+  formatearDistancia,
+  formatearPunto,
+  aceptaDevoluciones,
+  resolverPunto,
+} from '../js/punto-gls.js';
 
 const punto = {
   name: 'PS GO PACK EXPRESS',
@@ -86,4 +91,118 @@ test('formatearPunto construye la dirección con los trozos que haya', () => {
     formatearPunto({ name: 'X', address: { street: 'Carrer Major 1', city: 'Berga' } }).direccion,
     'Carrer Major 1, Berga',
   );
+});
+
+// --- Puntos que no admiten devoluciones ---------------------------------------------------
+//
+// GLS asigna a veces un punto que sus propios datos declaran incapaz de aceptar devoluciones
+// (verificado en producción: un locker de Castelldefels con offersReturnDropOff: 'N'). Nuestra
+// etiqueta es una devolución prepagada, así que el punto tiene que ofrecer las dos cosas.
+
+const puntoLaSeu = {
+  name: 'PS GO PACK EXPRESS',
+  type: 'SHOP',
+  parcelHandlingRestriction: {
+    offersParcelCollection: 'Y',
+    offersReturnDropOff: 'Y',
+    offersLabelPurchase: 'Y',
+    offersPrepaidParcelDropOff: 'Y',
+    offersLabellessDropOff: 'N',
+  },
+  distance: 0.18218337,
+  address: {
+    street: 'Carrer dels Canonges 52 bajos',
+    city: "La Seu d'Urgell",
+    zipCode: '25700',
+    countryCode: 'ES',
+  },
+  externalContactDetails: { phone: '635106811' },
+  openingDays: [{ weekday: 'TUE', hours: [{ openingTime: '09:30', closingTime: '13:30' }] }],
+};
+
+const lockerCastelldefels = {
+  name: 'GLS Locker 24/7 MOEVE CASTELLDEFELS',
+  type: 'LOCKER',
+  parcelHandlingRestriction: {
+    offersParcelCollection: 'Y',
+    offersReturnDropOff: 'N',
+    offersLabelPurchase: 'N',
+    offersPrepaidParcelDropOff: 'N',
+    offersLabellessDropOff: 'N',
+  },
+  distance: 0.17339578,
+  address: { street: 'Carrer Granada 20', city: 'Castelldefels', zipCode: '08860', countryCode: 'ES' },
+  openingDays: [{ weekday: 'MON', hours: [{ openingTime: '00:00', closingTime: '14:00' }] }],
+};
+
+test('aceptaDevoluciones acepta el punto que ofrece las dos capacidades', () => {
+  assert.equal(
+    aceptaDevoluciones({
+      parcelHandlingRestriction: { offersReturnDropOff: 'Y', offersPrepaidParcelDropOff: 'Y' },
+    }),
+    true,
+  );
+});
+
+test('aceptaDevoluciones rechaza si no admite dejar devoluciones', () => {
+  assert.equal(
+    aceptaDevoluciones({
+      parcelHandlingRestriction: { offersReturnDropOff: 'N', offersPrepaidParcelDropOff: 'Y' },
+    }),
+    false,
+  );
+});
+
+test('aceptaDevoluciones rechaza si no admite paquetes ya prepagados', () => {
+  assert.equal(
+    aceptaDevoluciones({
+      parcelHandlingRestriction: { offersReturnDropOff: 'Y', offersPrepaidParcelDropOff: 'N' },
+    }),
+    false,
+  );
+});
+
+test('aceptaDevoluciones rechaza cuando falta parcelHandlingRestriction', () => {
+  // Ante la duda, no. Mandar a alguien a un punto que le rechace el paquete es peor que
+  // decirle que busque uno.
+  assert.equal(aceptaDevoluciones({ name: 'PS SIN DATOS' }), false);
+  assert.equal(aceptaDevoluciones({ name: 'PS VACIO', parcelHandlingRestriction: {} }), false);
+  assert.equal(aceptaDevoluciones(null), false);
+  assert.equal(aceptaDevoluciones(undefined), false);
+});
+
+test('aceptaDevoluciones exige la "Y" literal que manda GLS', () => {
+  assert.equal(
+    aceptaDevoluciones({
+      parcelHandlingRestriction: { offersReturnDropOff: true, offersPrepaidParcelDropOff: true },
+    }),
+    false,
+  );
+});
+
+test('aceptaDevoluciones decide por capacidades, no por el tipo de punto', () => {
+  assert.equal(aceptaDevoluciones(puntoLaSeu), true);
+  assert.equal(aceptaDevoluciones(lockerCastelldefels), false);
+  // Un LOCKER que declarase las dos capacidades se aceptaría: manda el dato, no el `type`.
+  assert.equal(aceptaDevoluciones({ ...lockerCastelldefels, ...puntoLaSeu, type: 'LOCKER' }), true);
+});
+
+test('resolverPunto devuelve el punto formateado cuando admite devoluciones', () => {
+  const resultado = resolverPunto(puntoLaSeu);
+  assert.equal(resultado.noAdmiteDevoluciones, false);
+  assert.equal(resultado.punto.nombre, 'PS GO PACK EXPRESS');
+  assert.equal(resultado.punto.distancia, '182 m');
+});
+
+test('resolverPunto esconde el punto y avisa cuando no admite devoluciones', () => {
+  const resultado = resolverPunto(lockerCastelldefels);
+  assert.equal(resultado.punto, null);
+  assert.equal(resultado.noAdmiteDevoluciones, true);
+});
+
+test('resolverPunto no avisa de nada cuando GLS no asignó punto', () => {
+  // Sin punto no hay nada que explicar: el buscador ya se pinta siempre.
+  for (const vacio of [null, undefined, {}]) {
+    assert.deepEqual(resolverPunto(vacio), { punto: null, noAdmiteDevoluciones: false });
+  }
 });
