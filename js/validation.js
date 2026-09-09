@@ -3,9 +3,14 @@ export function isNonEmpty(value) {
 }
 
 // GLS solo tiene activados España y Portugal como países de origen.
+//
+// Nueve cifras en los dos casos. En España empiezan por 6, 7, 8 o 9 —móviles y fijos—; en
+// Portugal por 9 los móviles y por 2 los fijos: 21x Lisboa, 22x Oporto y de 23x a 29x el resto
+// del país. Aquí solo se admitía el 9 portugués, así que quien tuviera fijo no podía pasar del
+// paso 2.
 const TELEFONO_POR_PAIS = {
   ES: /^(?:\+34|0034)?[6789]\d{8}$/,
-  PT: /^(?:\+351|00351)?9\d{8}$/,
+  PT: /^(?:\+351|00351)?[29]\d{8}$/,
 };
 
 export function isValidPhone(phone, pais) {

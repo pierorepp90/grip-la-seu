@@ -22,6 +22,25 @@ test('isValidPhone acepta móviles portugueses', () => {
   assert.equal(isValidPhone('+351 912 345 678', 'PT'), true);
 });
 
+// Los fijos portugueses son de nueve cifras y empiezan por 2: 21x Lisboa, 22x Oporto y de
+// 23x a 29x el resto del país. Se rechazaban, así que un cliente portugués con fijo no podía
+// terminar el formulario.
+test('isValidPhone acepta fijos portugueses', () => {
+  assert.equal(isValidPhone('212345678', 'PT'), true);
+  assert.equal(isValidPhone('223456789', 'PT'), true);
+  assert.equal(isValidPhone('289123456', 'PT'), true);
+  assert.equal(isValidPhone('+351212345678', 'PT'), true);
+  assert.equal(isValidPhone('00351 212 345 678', 'PT'), true);
+});
+
+test('isValidPhone rechaza los prefijos portugueses que no existen', () => {
+  assert.equal(isValidPhone('112345678', 'PT'), false);
+  assert.equal(isValidPhone('312345678', 'PT'), false);
+  assert.equal(isValidPhone('812345678', 'PT'), false);
+  assert.equal(isValidPhone('21234567', 'PT'), false);
+  assert.equal(isValidPhone('2123456789', 'PT'), false);
+});
+
 test('isValidPhone no mezcla países', () => {
   assert.equal(isValidPhone('612345678', 'PT'), false);
   assert.equal(isValidPhone('+351912345678', 'ES'), false);
