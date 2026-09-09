@@ -77,6 +77,7 @@ export const DICT = {
     gracias_paid: 'Hem rebut el teu pagament correctament.',
     gracias_not_paid: 'El pagament no s\'ha completat. Torna-ho a intentar.',
     gracias_pending: 'Comprovant el pagament...',
+    gracias_error: 'No hem pogut comprovar el teu pagament. Si l\'has completat, no el tornis a fer: escriu-nos i ho revisem.',
     footer_rights: 'Tots els drets reservats.',
   },
   es: {
@@ -154,6 +155,7 @@ export const DICT = {
     gracias_paid: 'Hemos recibido tu pago correctamente.',
     gracias_not_paid: 'El pago no se ha completado. Vuelve a intentarlo.',
     gracias_pending: 'Comprobando el pago...',
+    gracias_error: 'No hemos podido comprobar tu pago. Si lo has completado, no vuelvas a pagar: escríbenos y lo revisamos.',
     footer_rights: 'Todos los derechos reservados.',
   },
   en: {
@@ -231,6 +233,7 @@ export const DICT = {
     gracias_paid: 'We received your payment successfully.',
     gracias_not_paid: 'Payment was not completed. Please try again.',
     gracias_pending: 'Checking payment...',
+    gracias_error: 'We could not verify your payment. If you completed it, do not pay again — contact us and we will check.',
     footer_rights: 'All rights reserved.',
   },
   pt: {
@@ -308,6 +311,7 @@ export const DICT = {
     gracias_paid: 'Recebemos o teu pagamento com sucesso.',
     gracias_not_paid: 'O pagamento não foi concluído. Tenta novamente.',
     gracias_pending: 'A verificar o pagamento...',
+    gracias_error: 'Não conseguimos verificar o teu pagamento. Se o concluíste, não pagues de novo: escreve-nos e verificamos.',
     footer_rights: 'Todos os direitos reservados.',
   },
 };

@@ -84,6 +84,20 @@ export function parseSessionPaymentStatus(session) {
   return session != null && session.payment_status === 'paid';
 }
 
+// Sin el motivo de Stripe, cualquier fallo es indiagnosticable desde fuera: el cliente solo ve
+// "algo ha fallado" y no hay forma de saber si es la clave, el importe o el payload. El mensaje
+// de Stripe describe la peticion, no expone nada de la cuenta.
+async function errorDeStripe(response, prefijo) {
+  const detalle = await response.text().catch(() => '');
+  let motivo = detalle.slice(0, 300);
+  try {
+    motivo = JSON.parse(detalle).error?.message ?? motivo;
+  } catch {
+    // Stripe no siempre responde JSON (p.ej. un 502 del borde); nos quedamos con el texto.
+  }
+  return new Error(`${prefijo} (HTTP ${response.status}): ${motivo}`);
+}
+
 export async function createStripeSession(params, secretKey, fetchFn = fetch) {
   const response = await fetchFn('https://api.stripe.com/v1/checkout/sessions', {
     method: 'POST',
@@ -94,31 +108,25 @@ export async function createStripeSession(params, secretKey, fetchFn = fetch) {
     body: params.toString(),
   });
   if (!response.ok) {
-    // Sin el motivo de Stripe, cualquier fallo aqui es indiagnosticable desde fuera: el
-    // cliente solo ve "algo ha fallado" y no hay forma de saber si es la clave, el importe
-    // o el payload. Se incluye el mensaje de Stripe, que describe la peticion, no la cuenta.
-    const detalle = await response.text().catch(() => '');
-    let motivo = detalle.slice(0, 300);
-    try {
-      motivo = JSON.parse(detalle).error?.message ?? motivo;
-    } catch {
-      // Stripe no siempre responde JSON (p.ej. un 502 del borde); nos quedamos con el texto.
-    }
-    throw new Error(`Stripe rechazó la creación de la sesión (HTTP ${response.status}): ${motivo}`);
+    throw await errorDeStripe(response, 'Stripe rechazó la creación de la sesión');
   }
   return response.json();
 }
 
 export async function retrieveStripeSession(sessionId, secretKey, fetchFn = fetch) {
   const response = await fetchFn(
-    `https://api.stripe.com/v1/checkout/sessions/${sessionId}?expand[]=line_items&line_items[limit]=100`,
+    // Solo expand[]=line_items. El endpoint de recuperacion NO acepta line_items[limit] y
+    // responde 400 "Received unknown parameter: line_items", asi que el pago con tarjeta
+    // fallaba siempre al volver de Stripe. El expand devuelve hasta 10 lineas, de sobra para
+    // un carrito de este catalogo (3 servicios x 2 tipos de calzado + envio).
+    `https://api.stripe.com/v1/checkout/sessions/${sessionId}?expand[]=line_items`,
     {
       method: 'GET',
       headers: { Authorization: `Bearer ${secretKey}` },
     },
   );
   if (!response.ok) {
-    throw new Error('No se pudo recuperar la sesión de Stripe');
+    throw await errorDeStripe(response, 'No se pudo recuperar la sesión de Stripe');
   }
   return response.json();
 }

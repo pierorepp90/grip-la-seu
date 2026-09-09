@@ -141,7 +141,7 @@ async function run() {
     }
   } catch (error) {
     console.error(error);
-    render('gracias_title', 'gracias_not_paid');
+    render('gracias_title', 'gracias_error');
   }
 }
 
