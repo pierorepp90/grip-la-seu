@@ -4,8 +4,14 @@
 // y está documentada en worker/src/gls.js. Todos los campos salvo `name` pueden faltar en
 // otra respuesta, así que aquí nada se da por hecho: se degrada, no se rompe.
 //
-// worker/src/resend.js replica a mano el formateo Y la regla de capacidades de este fichero
-// (worker/ se despliega solo y no puede importar de js/). Los dos cambian juntos.
+// Este módulo lo comparten el sitio (js/app.js, js/gracias.js) y el Worker
+// (worker/src/resend.js). Que worker/ tenga su propio package.json y se despliegue por su
+// cuenta no impide importarlo: esbuild sigue el import relativo y lo inlina en el bundle.
+// Comprobado el 2026-09-09 con `wrangler deploy --dry-run` sobre worker/: el bundle trae
+// este fichero una sola vez y el sourcemap lo declara entre sus fuentes.
+//
+// El precio de compartirlo es que aquí no puede entrar nada del navegador: ni DOM, ni
+// `window`, ni `document`, ni idiomas. Solo lógica pura sobre el objeto que manda GLS.
 
 // Se redondea antes de elegir unidad, no después: si no, 0.9996 km cae en la rama de metros
 // y se pinta como "1000 m" en vez de "1.0 km".
@@ -86,9 +92,9 @@ export function aceptaDevoluciones(punto) {
   return capacidades.offersReturnDropOff === 'Y' && capacidades.offersPrepaidParcelDropOff === 'Y';
 }
 
-// Única decisión sobre qué pintar, compartida por el modal (js/app.js) y la página de gracias
-// (js/gracias.js) para que no se separen. El email del worker (worker/src/resend.js) replica
-// esta misma rama a mano.
+// Única decisión sobre qué pintar, compartida por los tres sitios que la necesitan para que no
+// se separen: el modal (js/app.js), la página de gracias (js/gracias.js) y el email del Worker
+// (worker/src/resend.js).
 //
 //   { punto: {...}, noAdmiteDevoluciones: false }  → pintar el punto
 //   { punto: null,  noAdmiteDevoluciones: true  }  → pintar el aviso, no el punto

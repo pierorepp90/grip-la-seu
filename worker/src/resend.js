@@ -1,4 +1,5 @@
 import { describirLinea, nombrePais, nombreMetodoPago } from './catalogo.js';
+import { resolverPunto } from '../../js/punto-gls.js';
 
 const FROM_ADDRESS = 'Grip La Seu <pedidos@griplaseu.es>';
 
@@ -21,9 +22,10 @@ function escapeHtml(value) {
 // --- Recibo -------------------------------------------------------------------------------
 //
 // Mismo recibo que pinta el sitio (js/order.js → buildOrderSummary): las mismas secciones, en
-// el mismo orden, con los mismos nombres. Aquí se monta a mano porque worker/ se despliega
-// solo y no puede importar de js/, y porque un email no es una página: hace falta una tabla
-// con estilos en línea para que Gmail y Outlook respeten las dos columnas.
+// el mismo orden, con los mismos nombres. Aquí se monta a mano porque un email no es una
+// página: hace falta una tabla con estilos en línea para que Gmail y Outlook respeten las dos
+// columnas. No es que worker/ no pueda importar de js/ —este fichero importa js/punto-gls.js—:
+// es que lo que habría que compartir aquí es marcado, y el del email no se parece al del sitio.
 //
 // El email es solo en castellano por diseño.
 
@@ -110,9 +112,11 @@ function glsHtmlPropietario(gls) {
 }
 
 // Punto de entrega que GLS asigna al crear la devolución. El formateo, la regla de qué punto
-// es utilizable y el colapso de los días abiertos 24 h están duplicados a propósito de
-// js/punto-gls.js: worker/ se despliega solo (wrangler, su propio package.json) y no puede
-// depender de la carpeta js/ del sitio estático. Si cambian, hay que tocar los dos ficheros.
+// admite devoluciones y el colapso de los días abiertos 24 h salen de js/punto-gls.js, el
+// mismo módulo que usan el modal del sitio y la página de gracias: esbuild sigue el import
+// relativo y lo inlina en el bundle del Worker aunque el fichero viva fuera de worker/.
+// Aquí abajo solo queda la presentación, que sí es propia del email: los nombres de día en
+// castellano y el HTML escapado.
 const BUSCADOR_GLS_URL = 'https://www.gls-spain.es/es/parcel-shops/';
 
 const DIAS_ES = {
@@ -125,47 +129,6 @@ const DIAS_ES = {
   SUN: 'Domingo',
 };
 
-// Se redondea antes de elegir unidad: si no, 0.9996 km cae en la rama de metros y se pinta
-// como "1000 m" en vez de "1.0 km".
-function formatearDistancia(km) {
-  if (typeof km !== 'number' || Number.isNaN(km)) return null;
-  const metros = Math.round(km * 1000);
-  if (metros < 1000) return `${metros} m`;
-  return `${(metros / 1000).toFixed(1)} km`;
-}
-
-// Espejo de aceptaDevoluciones() en js/punto-gls.js. GLS asigna a veces un punto que sus
-// propios datos declaran incapaz de aceptar devoluciones (verificado en producción con un
-// locker de Castelldefels). Se decide por capacidades, no por `type`, y se exige la 'Y'
-// literal: sin el dato, el punto se descarta.
-function aceptaDevoluciones(punto) {
-  const capacidades = punto?.parcelHandlingRestriction;
-  if (!capacidades) return false;
-  return capacidades.offersReturnDropOff === 'Y' && capacidades.offersPrepaidParcelDropOff === 'Y';
-}
-
-// Espejo de cubreElDia() en js/punto-gls.js. GLS expresa un punto abierto 24/7 como dos tramos
-// pegados por día (00:00–14:00 y 14:00–23:59); pintados literalmente son seis líneas casi
-// idénticas de ruido.
-function enMinutos(hora) {
-  const partes = /^(\d{1,2}):(\d{2})$/.exec(String(hora));
-  if (!partes) return null;
-  return Number(partes[1]) * 60 + Number(partes[2]);
-}
-
-function cubreElDia(hours) {
-  if (!Array.isArray(hours) || hours.length === 0) return false;
-  const tramos = hours.map((tramo) => [enMinutos(tramo.openingTime), enMinutos(tramo.closingTime)]);
-  if (tramos.some(([inicio, fin]) => inicio === null || fin === null)) return false;
-
-  let alcance = 0;
-  for (const [inicio, fin] of [...tramos].sort((a, b) => a[0] - b[0])) {
-    if (inicio > alcance) return false;
-    alcance = Math.max(alcance, fin === 0 ? 1440 : fin);
-  }
-  return alcance >= 1439;
-}
-
 // El email es solo en castellano por diseño; el equivalente traducido de este aviso vive en
 // js/i18n.js bajo la clave gls_punto_no_devoluciones.
 const AVISO_SIN_DEVOLUCIONES =
@@ -174,38 +137,27 @@ const AVISO_SIN_DEVOLUCIONES =
 
 // Todo lo que hay aquí dentro viene de la API de GLS, así que todo pasa por escapeHtml.
 function puntoHtml(punto) {
-  if (!punto || !punto.name) return '';
-
   // Del punto rechazado no sale ni un dato al email: no queremos que nadie camine hasta un
-  // sitio que le va a rechazar el paquete.
-  if (!aceptaDevoluciones(punto)) return AVISO_SIN_DEVOLUCIONES;
+  // sitio que le va a rechazar el paquete. Sin punto asignado no se pinta nada.
+  const { punto: datos, noAdmiteDevoluciones } = resolverPunto(punto, 'Abierto 24 h');
+  if (noAdmiteDevoluciones) return AVISO_SIN_DEVOLUCIONES;
+  if (!datos) return '';
 
-  const direccion = punto.address ?? {};
-  const localidad = [direccion.zipCode, direccion.city].filter(Boolean).join(' ');
-  const senas = [direccion.street, localidad].filter(Boolean).join(', ');
-  const distancia = formatearDistancia(punto.distance);
-  const telefono = punto.externalContactDetails?.phone;
-
-  const horarios = (punto.openingDays ?? [])
+  const horarios = datos.horarios
     .map((dia) => {
       // hasOwn y no DIAS_ES[dia.weekday]: un weekday como "toString" devolvería una función.
       const nombreDia = Object.hasOwn(DIAS_ES, dia.weekday)
         ? DIAS_ES[dia.weekday]
         : escapeHtml(dia.weekday);
-      const tramos = cubreElDia(dia.hours)
-        ? 'Abierto 24 h'
-        : (dia.hours ?? [])
-            .map((tramo) => `${escapeHtml(tramo.openingTime)}–${escapeHtml(tramo.closingTime)}`)
-            .join(', ');
-      return `<li>${nombreDia}: ${tramos}</li>`;
+      return `<li>${nombreDia}: ${escapeHtml(dia.tramos)}</li>`;
     })
     .join('\n');
 
   return `
     <h3>Dónde dejar el paquete</h3>
-    <p><strong>${escapeHtml(punto.name)}</strong>${distancia ? ` · ${escapeHtml(distancia)}` : ''}</p>
-    ${senas ? `<p>${escapeHtml(senas)}</p>` : ''}
-    ${telefono ? `<p>Teléfono: ${escapeHtml(telefono)}</p>` : ''}
+    <p><strong>${escapeHtml(datos.nombre)}</strong>${datos.distancia ? ` · ${escapeHtml(datos.distancia)}` : ''}</p>
+    ${datos.direccion ? `<p>${escapeHtml(datos.direccion)}</p>` : ''}
+    ${datos.telefono ? `<p>Teléfono: ${escapeHtml(datos.telefono)}</p>` : ''}
     ${horarios ? `<p>Horario:</p>\n    <ul>\n${horarios}\n    </ul>` : ''}
   `;
 }
